@@ -25,7 +25,10 @@ zodiac_client = Session()
 def get_client_with_role(resource):
     """Gets Boto3 client which authenticates with a specific IAM role."""
     session = boto3.Session()
-    assumed_role_session = assume_role(session, environ.get('AWS_ROLE_ARN'))
+    assumed_role_session = assume_role(
+        session,
+        environ.get('AWS_ROLE_ARN'),
+        region_name='us-east-1')
     return assumed_role_session.client(resource)
 
 
