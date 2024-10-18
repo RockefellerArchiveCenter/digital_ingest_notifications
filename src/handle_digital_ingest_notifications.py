@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 full_config_path = f"/{environ.get('ENV')}/{environ.get('APP_CONFIG_PATH')}"
 NEXT_SERVICE_MAP = {
     'ursa_major': 'fornax',
-    'webhook': 'aquarius' 
+    'webhook': 'aquarius'
 }
 zodiac_client = Session()
 
@@ -58,22 +58,29 @@ def get_config(ssm_parameter_path):
         traceback.print_exc()
     finally:
         return configuration
-    
+
+
 def update_package(attributes, config):
     package_data = {
         'package_id': attributes['package_id']['Value'],
     }
     if attributes.get('package_data'):
-        package_data['package_data'] = json.loads(attributes['package_data']['Value'])
-    send_http_request(f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages', 'post', package_data)
+        package_data['package_data'] = json.loads(
+            attributes['package_data']['Value'])
+    send_http_request(
+        f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages',
+        'post',
+        package_data)
+
 
 def construct_event_id():
     return str(uuid.uuid4())
 
+
 def update_events(attributes, config):
     package_events = matching_events(
-        attributes['package_id'], 
-        attributes['service'], 
+        attributes['package_id'],
+        attributes['service'],
         config['ZODIAC_BASEURL'].rstrip("/"))
     logger.debug(package_events)
     if len(package_events) <= 1:
@@ -82,10 +89,15 @@ def update_events(attributes, config):
             'service': attributes['service']['Value'],
             'package': attributes['package_id']['Value']
         }
-        event_data['identifier'] = package_events[0]['identifier'] if len(package_events) == 1 else construct_event_id()
-        send_http_request(f'{config["ZODIAC_BASEURL"].rstrip("/")}/events', 'post', event_data)
+        event_data['identifier'] = package_events[0]['identifier'] if len(
+            package_events) == 1 else construct_event_id()
+        send_http_request(
+            f'{config["ZODIAC_BASEURL"].rstrip("/")}/events',
+            'post',
+            event_data)
     else:
-        raise Exception(f'Got more than one matching event for package {attributes["package_id"]}, found {len(package_events)}')
+        raise Exception(
+            f'Got more than one matching event for package {attributes["package_id"]}, found {len(package_events)}')
 
 
 def send_http_request(url, method, data):
@@ -97,12 +109,14 @@ def send_http_request(url, method, data):
         resp = getattr(zodiac_client, method)(url)
     resp.raise_for_status()
 
-    
-def matching_events(package_id, service_name, baseurl, outcome = None):
+
+def matching_events(package_id, service_name, baseurl, outcome=None):
     """Returns list of events matching package and service."""
-    package_events = send_http_request(f'{baseurl}/packages/{package_id}/events', 'get')
+    package_events = send_http_request(
+        f'{baseurl}/packages/{package_id}/events', 'get')
     if outcome:
-        return [e for e in package_events if (e['service'] == service_name and e['outcome'] == outcome)]
+        return [e for e in package_events if (
+            e['service'] == service_name and e['outcome'] == outcome)]
     else:
         return [e for e in package_events if e['service'] == service_name]
 
@@ -130,7 +144,8 @@ def send_next_service_message(current_service, package_id, config):
                     'StringValue': next_service,
                 }
             })
-        logging.info(f'Message to start service {next_service} for package {package_id} sent.')
+        logging.info(
+            f'Message to start service {next_service} for package {package_id} sent.')
     except KeyError:
         logging.info(f'No next service found for {current_service}')
         pass
@@ -146,18 +161,18 @@ def lambda_handler(event, context):
     logger.debug(attributes)
 
     if len(matching_events(
-        attributes['package_id']['Value'], 
-        attributes['service']['Value'], 
+        attributes['package_id']['Value'],
+        attributes['service']['Value'],
         config['ZODIAC_BASEURL'].rstrip("/"),
         attributes['outcome']['Value']
     )) == 0:
         update_package(attributes, config)
         update_events(attributes, config)
-        
+
         if attributes.get('outcome', {}).get('Value') == 'SUCCESS':
             send_next_service_message(
-                attributes['service']['Value'], 
-                attributes['package_id']['Value'], 
+                attributes['service']['Value'],
+                attributes['package_id']['Value'],
                 config)
     else:
-        logging.info(f'Duplicate event found')
+        logging.info('Duplicate event found')
