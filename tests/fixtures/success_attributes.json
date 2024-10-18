@@ -1,0 +1,14 @@
+{
+    "package_id": {
+      "Type": "String",
+      "Value": "20f8da26e268418ead4aa2365f816a08"
+    },
+    "service": {
+      "Type": "String",
+      "Value": "validation"
+    },
+    "outcome": {
+      "Type": "String",
+      "Value": "SUCCESS"
+    }
+  }

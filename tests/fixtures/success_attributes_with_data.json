@@ -1,0 +1,18 @@
+{
+  "package_id": {
+    "Type": "String",
+    "Value": "20f8da26e268418ead4aa2365f816a08"
+  },
+  "package_data": {
+    "Type": "String",
+    "Value": "{\"foo\":\"bar\",\"baz\":[{\"bus\":true,\"buz\":false}]}"
+  },
+  "service": {
+    "Type": "String",
+    "Value": "validation"
+  },
+  "outcome": {
+    "Type": "String",
+    "Value": "SUCCESS"
+  }
+}
