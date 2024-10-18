@@ -28,7 +28,7 @@ def get_client_with_role(resource):
     assumed_role_session = assume_role(
         session,
         environ.get('AWS_ROLE_ARN'),
-        region_name='us-east-1')
+        region_name=environ.get('AWS_REGION'))
     return assumed_role_session.client(resource)
 
 
