@@ -47,13 +47,13 @@ def config_fixture():
                          ['success_message.json'], indirect=True)
 def test_success_notification(
         mock_start, mock_events, mock_package, mock_matching_events, mock_config, data_from_file):
-    attributes = data_from_file['Records'][0]['Sns']['MessageAttributes']
+    attributes = data_from_file['Records'][0]['messageAttributes']
     mock_matching_events.return_value = []
     lambda_handler(data_from_file, None)
     mock_config.assert_called_once()
     mock_start.assert_called_once_with(
         'validation',
-        attributes['package_id']['Value'],
+        attributes['package_id']['stringValue'],
         mock_config())
     mock_events.assert_called_once_with(attributes, mock_config())
     mock_package.assert_called_once_with(attributes, mock_config())
@@ -82,7 +82,7 @@ def test_success_notification(
 def test_failure_notification(
         mock_start, mock_events, mock_package, mock_matching_events, mock_config, data_from_file):
     """Assert failure notifications are handled correctly"""
-    attributes = data_from_file['Records'][0]['Sns']['MessageAttributes']
+    attributes = data_from_file['Records'][0]['messageAttributes']
     mock_matching_events.return_value = []
     lambda_handler(data_from_file, None)
     mock_config.assert_called_once()
