@@ -1,43 +1,41 @@
 {
   "Records": [
-    {
-      "EventVersion": "1.0",
-      "EventSubscriptionArn": "arn:aws:sns:us-east-1:123456789012:sns-lambda:21be56ed-a058-49f5-8c98-aedd2564c486",
-      "EventSource": "aws:sns",
-      "Sns": {
-        "SignatureVersion": "1",
-        "Timestamp": "2019-01-02T12:45:07.000Z",
-        "Signature": "tcc6faL2yUC6dgZdmrwh1Y4cGa/ebXEkAi6RibDsvpi+tE/1+82j...65r==",
-        "SigningCertUrl": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-ac565b8b1a6c5d002d285f9598aa1d9b.pem",
-        "MessageId": "95df01b4-ee98-5cb9-9903-4c221d41eb5e",
-        "Message": "package 20f8da26e268418ead4aa2365f816a08 failed validation.",
-        "MessageAttributes": {
-          "package_id": {
-            "Type": "String",
-            "Value": "20f8da26e268418ead4aa2365f816a08"
+      {
+          "messageId": "059f36b4-87a3-44ab-83d2-661975830a7d",
+          "receiptHandle": "AQEBwJnKyrHigUMZj6rYigCgxlaS3SLy0a...",
+          "body": "Test message.",
+          "attributes": {
+              "ApproximateReceiveCount": "1",
+              "SentTimestamp": "1545082649183",
+              "SenderId": "AIDAIENQZJOLO23YVJ4VO",
+              "ApproximateFirstReceiveTimestamp": "1545082649185"
           },
-          "service": {
-            "Type": "String",
-            "Value": "validation"
+          "messageAttributes": {
+              "package_id": {
+                  "stringValue": "20f8da26e268418ead4aa2365f816a08", 
+                  "dataType": "String"
+              },
+              "service": {
+                  "stringValue": "validation", 
+                  "dataType": "String"
+              },
+              "outcome": {
+                  "stringValue": "FAILURE", 
+                  "dataType": "String"
+              },
+              "message": {
+                "stringValue": "BagIt validation failed.",
+                "dataType": "String"
+              },
+              "traceback": {
+                "stringValue": "Much longer traceback.",
+                "dataType": "String"
+              }
           },
-          "outcome": {
-            "Type": "String",
-            "Value": "FAILURE"
-          },
-          "message": {
-            "Type": "String",
-            "Value": "BagIt validation failed."
-          },
-          "traceback": {
-            "Type": "String",
-            "Value": "Much longer traceback."
-          }
-        },
-        "Type": "Notification",
-        "UnsubscribeUrl": "https://sns.us-east-1.amazonaws.com/?Action=Unsubscribe&amp;SubscriptionArn=arn:aws:sns:us-east-1:123456789012:test-lambda:21be56ed-a058-49f5-8c98-aedd2564c486",
-        "TopicArn":"arn:aws:sns:us-east-1:123456789012:sns-lambda",
-        "Subject": "TestInvoke"
+          "md5OfBody": "e4e68fb7bd0e697a0ae8f1bb342846b3",
+          "eventSource": "aws:sqs",
+          "eventSourceARN": "arn:aws:sqs:us-east-2:123456789012:my-queue",
+          "awsRegion": "us-east-2"
       }
-    }
   ]
 }

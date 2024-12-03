@@ -147,35 +147,35 @@ def send_next_service_message(current_service, package_id, config):
                     'StringValue': next_service,
                 }
             })
-        logging.info(
+        logger.info(
             f'Message to start service {next_service} for package {package_id} sent.')
     except KeyError:
-        logging.info(f'No next service found for {current_service}')
+        logger.info(f'No next service found for {current_service}')
         pass
 
 
 def lambda_handler(event, context):
     """Main handler for function."""
-    logger.info("Message received.")
+    logger.info("Message batch received.")
 
     config = get_config(full_config_path)
+    for record in event['Records']:
+        attributes = record['messageAttributes']
+        logger.debug(attributes)
 
-    attributes = event['Records'][0]['Sns']['MessageAttributes']
-    logger.debug(attributes)
+        if len(matching_events(
+            attributes['package_id']['stringValue'],
+            attributes['service']['stringValue'],
+            config['ZODIAC_BASEURL'].rstrip("/"),
+            attributes['outcome']['stringValue']
+        )) == 0:
+            update_package(attributes, config)
+            update_events(attributes, config)
 
-    if len(matching_events(
-        attributes['package_id']['Value'],
-        attributes['service']['Value'],
-        config['ZODIAC_BASEURL'].rstrip("/"),
-        attributes['outcome']['Value']
-    )) == 0:
-        update_package(attributes, config)
-        update_events(attributes, config)
-
-        if attributes.get('outcome', {}).get('Value') == 'SUCCESS':
-            send_next_service_message(
-                attributes['service']['Value'],
-                attributes['package_id']['Value'],
-                config)
-    else:
-        logging.info('Duplicate event found')
+            if attributes.get('outcome', {}).get('stringValue') == 'SUCCESS':
+                send_next_service_message(
+                    attributes['service']['stringValue'],
+                    attributes['package_id']['stringValue'],
+                    config)
+        else:
+            logger.info('Duplicate event found')

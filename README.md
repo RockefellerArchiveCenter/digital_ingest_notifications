@@ -16,7 +16,7 @@ This repository is intended to be deployed as a Lambda script in AWS infrastruct
 
 ### Expected Message Format
 
-The script is designed to consume message from an AWS Simple Notifications Service (SNS) queue. These messages are expected have the following attributes:
+The script is designed to consume message from an AWS Simple Queue Service (SQS) queue. These messages are expected have the following attributes:
 - `package_id` - an identifier associated with the package
 - `package_data` - new data about the package created by a service, if relevant
 - `service` - the service which produced the message
