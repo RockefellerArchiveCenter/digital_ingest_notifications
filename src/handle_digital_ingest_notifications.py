@@ -131,7 +131,7 @@ def send_next_service_message(current_service, package_id, config):
         logger.info(f"Starting service {next_service}")
         client = get_client_with_role('sns')
         client.publish(
-            TopicArn=config['SERVICE_START_SNS_TOPIC'],
+            TopicArn=config['SNS_TOPIC'],
             Message=f'Start service {next_service} for package {package_id}',
             MessageAttributes={
                 'package_id': {
