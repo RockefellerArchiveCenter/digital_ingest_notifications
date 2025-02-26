@@ -92,6 +92,9 @@ def update_events(attributes, config):
             'service': attributes['service']['Value'],
             'package': attributes['package_id']['Value']
         }
+        for key in ['message', 'traceback']:
+            if attributes.get(key):
+                event_data[key] = attributes[key]['Value']
         event_data['identifier'] = package_events[0]['identifier'] if len(
             package_events) == 1 else construct_event_id()
         send_http_request(

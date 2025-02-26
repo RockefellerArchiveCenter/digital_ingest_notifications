@@ -95,7 +95,8 @@ def test_failure_notification(
 @patch('src.handle_digital_ingest_notifications.construct_event_id')
 @pytest.mark.parametrize('data_from_file',
                          ['success_attributes.json'], indirect=True)
-def test_create_event(mock_id, mock_http, config_fixture, data_from_file):
+def test_create_success_event(
+        mock_id, mock_http, config_fixture, data_from_file):
     """Assert events are created with correct data"""
     event_id = '123456789'
     mock_id.return_value = event_id
@@ -108,6 +109,30 @@ def test_create_event(mock_id, mock_http, config_fixture, data_from_file):
             'outcome': 'SUCCESS',
             'service': 'validation',
             'package': '20f8da26e268418ead4aa2365f816a08',
+            'identifier': event_id
+        })
+
+
+@patch('src.handle_digital_ingest_notifications.send_http_request')
+@patch('src.handle_digital_ingest_notifications.construct_event_id')
+@pytest.mark.parametrize('data_from_file',
+                         ['failure_attributes.json'], indirect=True)
+def test_create_failure_event(
+        mock_id, mock_http, config_fixture, data_from_file):
+    """Assert events are created with correct data"""
+    event_id = '123456789'
+    mock_id.return_value = event_id
+    update_events(data_from_file, config_fixture)
+    assert mock_http.call_count == 2
+    mock_http.assert_called_with(
+        f"{ZODIAC_BASEURL}/events/",
+        'post',
+        {
+            'outcome': 'FAILURE',
+            'service': 'validation',
+            'package': '20f8da26e268418ead4aa2365f816a08',
+            'message': 'BagIt validation failed.',
+            'traceback': 'Much longer traceback.',
             'identifier': event_id
         })
 
