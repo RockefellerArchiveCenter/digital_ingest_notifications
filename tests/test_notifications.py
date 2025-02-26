@@ -2,12 +2,13 @@
 
 import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import boto3
 import pytest
 from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
+from requests.exceptions import HTTPError
 
 from src.handle_digital_ingest_notifications import (get_config,
                                                      lambda_handler,
@@ -173,12 +174,21 @@ def test_update_event(mock_matching_events, mock_id,
                          ['success_attributes.json'], indirect=True)
 def test_create_package(mock_http, config_fixture, data_from_file):
     """Assert packages are created with the correct data"""
+    mock_http.side_effect = [HTTPError(), None]
     update_package(data_from_file, config_fixture)
-    mock_http.assert_called_once_with(
-        f'{ZODIAC_BASEURL}/packages/',
-        'post',
-        {'package_id': '20f8da26e268418ead4aa2365f816a08'}
-    )
+    mock_http.assert_has_calls([
+        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
+             'put',
+             {
+                 'identifier': '20f8da26e268418ead4aa2365f816a08'
+             }),
+        call(
+            f'{ZODIAC_BASEURL}/packages/',
+            'post',
+            {
+                'identifier': '20f8da26e268418ead4aa2365f816a08'}
+        )
+    ])
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
@@ -186,13 +196,41 @@ def test_create_package(mock_http, config_fixture, data_from_file):
                          ['success_attributes_with_data.json'], indirect=True)
 def test_create_package_with_data(mock_http, config_fixture, data_from_file):
     """Assert packages are created with the correct data"""
+    mock_http.side_effect = [HTTPError(), None]
+    update_package(data_from_file, config_fixture)
+    mock_http.assert_has_calls([
+        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
+             'put',
+             {
+                 'identifier': '20f8da26e268418ead4aa2365f816a08',
+                 'foo': 'bar',
+                 'baz': [{'bus': True, 'buz': False}]
+             }),
+        call(
+            f'{ZODIAC_BASEURL}/packages/',
+            'post',
+            {
+                'identifier': '20f8da26e268418ead4aa2365f816a08',
+                'foo': 'bar',
+                'baz': [{'bus': True, 'buz': False}]
+            }
+        )
+    ])
+
+
+@patch('src.handle_digital_ingest_notifications.send_http_request')
+@pytest.mark.parametrize('data_from_file',
+                         ['success_attributes_with_data.json'], indirect=True)
+def test_update_package_with_data(mock_http, config_fixture, data_from_file):
+    """Assert packages are created with the correct data"""
     update_package(data_from_file, config_fixture)
     mock_http.assert_called_once_with(
-        f'{ZODIAC_BASEURL}/packages/',
-        'post',
+        f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
+        'put',
         {
-            'package_id': '20f8da26e268418ead4aa2365f816a08',
-            'package_data': {'foo': 'bar', 'baz': [{'bus': True, 'buz': False}]}
+            'identifier': '20f8da26e268418ead4aa2365f816a08',
+            'foo': 'bar',
+            'baz': [{'bus': True, 'buz': False}]
         }
     )
 

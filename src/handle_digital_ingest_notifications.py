@@ -9,6 +9,7 @@ from os import environ
 import boto3
 from aws_assume_role_lib import assume_role
 from requests import Session
+from requests.exceptions import HTTPError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -64,16 +65,23 @@ def get_config(ssm_parameter_path):
 
 
 def update_package(attributes, config):
+    package_id = attributes['package_id']['Value']
     package_data = {
-        'package_id': attributes['package_id']['Value'],
+        'identifier': package_id
     }
     if attributes.get('package_data'):
-        package_data['package_data'] = json.loads(
-            attributes['package_data']['Value'])
-    send_http_request(
-        f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages/',
-        'post',
-        package_data)
+        package_data.update(json.loads(
+            attributes['package_data']['Value']))
+    try:
+        send_http_request(
+            f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages/{package_id}',
+            'put',
+            package_data)
+    except HTTPError:
+        send_http_request(
+            f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages/',
+            'post',
+            package_data)
 
 
 def construct_event_id():
