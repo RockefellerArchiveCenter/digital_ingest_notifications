@@ -102,7 +102,7 @@ def test_create_event(mock_id, mock_http, config_fixture, data_from_file):
     update_events(data_from_file, config_fixture)
     assert mock_http.call_count == 2
     mock_http.assert_called_with(
-        f"{ZODIAC_BASEURL}/events",
+        f"{ZODIAC_BASEURL}/events/",
         'post',
         {
             'outcome': 'SUCCESS',
@@ -133,7 +133,7 @@ def test_update_event(mock_matching_events, mock_id,
     update_events(data_from_file, config_fixture)
     assert mock_http.call_count == 1
     mock_http.assert_called_with(
-        f"{ZODIAC_BASEURL}/events",
+        f"{ZODIAC_BASEURL}/events/",
         'post',
         {
             'outcome': 'SUCCESS',
@@ -150,7 +150,7 @@ def test_create_package(mock_http, config_fixture, data_from_file):
     """Assert packages are created with the correct data"""
     update_package(data_from_file, config_fixture)
     mock_http.assert_called_once_with(
-        f'{ZODIAC_BASEURL}/packages',
+        f'{ZODIAC_BASEURL}/packages/',
         'post',
         {'package_id': '20f8da26e268418ead4aa2365f816a08'}
     )
@@ -163,7 +163,7 @@ def test_create_package_with_data(mock_http, config_fixture, data_from_file):
     """Assert packages are created with the correct data"""
     update_package(data_from_file, config_fixture)
     mock_http.assert_called_once_with(
-        f'{ZODIAC_BASEURL}/packages',
+        f'{ZODIAC_BASEURL}/packages/',
         'post',
         {
             'package_id': '20f8da26e268418ead4aa2365f816a08',

@@ -71,7 +71,7 @@ def update_package(attributes, config):
         package_data['package_data'] = json.loads(
             attributes['package_data']['Value'])
     send_http_request(
-        f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages',
+        f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages/',
         'post',
         package_data)
 
@@ -95,7 +95,7 @@ def update_events(attributes, config):
         event_data['identifier'] = package_events[0]['identifier'] if len(
             package_events) == 1 else construct_event_id()
         send_http_request(
-            f'{config["ZODIAC_BASEURL"].rstrip("/")}/events',
+            f'{config["ZODIAC_BASEURL"].rstrip("/")}/events/',
             'post',
             event_data)
     else:
@@ -116,7 +116,7 @@ def send_http_request(url, method, data):
 def matching_events(package_id, service_name, baseurl, outcome=None):
     """Returns list of events matching package and service."""
     package_events = send_http_request(
-        f'{baseurl}/packages/{package_id}/events', 'get')
+        f'{baseurl}/packages/{package_id}/events/', 'get')
     if outcome:
         return [e for e in package_events if (
             e['service'] == service_name and e['outcome'] == outcome)]
