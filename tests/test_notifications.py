@@ -2,12 +2,13 @@
 
 import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import boto3
 import pytest
 from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
+from requests.exceptions import HTTPError
 
 from src.handle_digital_ingest_notifications import (get_config,
                                                      lambda_handler,
@@ -95,19 +96,44 @@ def test_failure_notification(
 @patch('src.handle_digital_ingest_notifications.construct_event_id')
 @pytest.mark.parametrize('data_from_file',
                          ['success_attributes.json'], indirect=True)
-def test_create_event(mock_id, mock_http, config_fixture, data_from_file):
+def test_create_success_event(
+        mock_id, mock_http, config_fixture, data_from_file):
     """Assert events are created with correct data"""
     event_id = '123456789'
     mock_id.return_value = event_id
     update_events(data_from_file, config_fixture)
     assert mock_http.call_count == 2
     mock_http.assert_called_with(
-        f"{ZODIAC_BASEURL}/events",
+        f"{ZODIAC_BASEURL}/events/",
         'post',
         {
             'outcome': 'SUCCESS',
             'service': 'validation',
             'package': '20f8da26e268418ead4aa2365f816a08',
+            'identifier': event_id
+        })
+
+
+@patch('src.handle_digital_ingest_notifications.send_http_request')
+@patch('src.handle_digital_ingest_notifications.construct_event_id')
+@pytest.mark.parametrize('data_from_file',
+                         ['failure_attributes.json'], indirect=True)
+def test_create_failure_event(
+        mock_id, mock_http, config_fixture, data_from_file):
+    """Assert events are created with correct data"""
+    event_id = '123456789'
+    mock_id.return_value = event_id
+    update_events(data_from_file, config_fixture)
+    assert mock_http.call_count == 2
+    mock_http.assert_called_with(
+        f"{ZODIAC_BASEURL}/events/",
+        'post',
+        {
+            'outcome': 'FAILURE',
+            'service': 'validation',
+            'package': '20f8da26e268418ead4aa2365f816a08',
+            'message': 'BagIt validation failed.',
+            'traceback': 'Much longer traceback.',
             'identifier': event_id
         })
 
@@ -133,7 +159,7 @@ def test_update_event(mock_matching_events, mock_id,
     update_events(data_from_file, config_fixture)
     assert mock_http.call_count == 1
     mock_http.assert_called_with(
-        f"{ZODIAC_BASEURL}/events",
+        f"{ZODIAC_BASEURL}/events/",
         'post',
         {
             'outcome': 'SUCCESS',
@@ -148,12 +174,21 @@ def test_update_event(mock_matching_events, mock_id,
                          ['success_attributes.json'], indirect=True)
 def test_create_package(mock_http, config_fixture, data_from_file):
     """Assert packages are created with the correct data"""
+    mock_http.side_effect = [HTTPError(), None]
     update_package(data_from_file, config_fixture)
-    mock_http.assert_called_once_with(
-        f'{ZODIAC_BASEURL}/packages',
-        'post',
-        {'package_id': '20f8da26e268418ead4aa2365f816a08'}
-    )
+    mock_http.assert_has_calls([
+        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
+             'put',
+             {
+                 'identifier': '20f8da26e268418ead4aa2365f816a08'
+             }),
+        call(
+            f'{ZODIAC_BASEURL}/packages/',
+            'post',
+            {
+                'identifier': '20f8da26e268418ead4aa2365f816a08'}
+        )
+    ])
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
@@ -161,13 +196,41 @@ def test_create_package(mock_http, config_fixture, data_from_file):
                          ['success_attributes_with_data.json'], indirect=True)
 def test_create_package_with_data(mock_http, config_fixture, data_from_file):
     """Assert packages are created with the correct data"""
+    mock_http.side_effect = [HTTPError(), None]
+    update_package(data_from_file, config_fixture)
+    mock_http.assert_has_calls([
+        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
+             'put',
+             {
+                 'identifier': '20f8da26e268418ead4aa2365f816a08',
+                 'foo': 'bar',
+                 'baz': [{'bus': True, 'buz': False}]
+             }),
+        call(
+            f'{ZODIAC_BASEURL}/packages/',
+            'post',
+            {
+                'identifier': '20f8da26e268418ead4aa2365f816a08',
+                'foo': 'bar',
+                'baz': [{'bus': True, 'buz': False}]
+            }
+        )
+    ])
+
+
+@patch('src.handle_digital_ingest_notifications.send_http_request')
+@pytest.mark.parametrize('data_from_file',
+                         ['success_attributes_with_data.json'], indirect=True)
+def test_update_package_with_data(mock_http, config_fixture, data_from_file):
+    """Assert packages are created with the correct data"""
     update_package(data_from_file, config_fixture)
     mock_http.assert_called_once_with(
-        f'{ZODIAC_BASEURL}/packages',
-        'post',
+        f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
+        'put',
         {
-            'package_id': '20f8da26e268418ead4aa2365f816a08',
-            'package_data': {'foo': 'bar', 'baz': [{'bus': True, 'buz': False}]}
+            'identifier': '20f8da26e268418ead4aa2365f816a08',
+            'foo': 'bar',
+            'baz': [{'bus': True, 'buz': False}]
         }
     )
 
@@ -182,12 +245,20 @@ def test_matching_events(mock_http, data_from_file):
         matching_events(
             "package_id",
             "fornax",
-            "baseurl")) == 1  # matching service
+            "baseurl",
+            outcome="success")) == 1  # matching service and status
+    assert len(
+        matching_events(
+            "package_id",
+            "fornax",
+            "baseurl",
+            outcome="failure")) == 0  # matching service, mismatched status
     assert len(
         matching_events(
             "package_id",
             "foo",
-            "baseurl")) == 0  # no matching service
+            "baseurl",
+            outcome="success")) == 0  # no matching service
 
 
 @mock_aws

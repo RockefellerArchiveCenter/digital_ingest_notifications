@@ -1,0 +1,22 @@
+{
+    "package_id": {
+        "Value": "20f8da26e268418ead4aa2365f816a08", 
+        "Type": "String"
+    },
+    "service": {
+        "Value": "validation", 
+        "Type": "String"
+    },
+    "outcome": {
+        "Value": "FAILURE", 
+        "Type": "String"
+    },
+    "message": {
+      "Value": "BagIt validation failed.",
+      "Type": "String"
+    },
+    "traceback": {
+      "Value": "Much longer traceback.",
+      "Type": "String"
+    }
+}

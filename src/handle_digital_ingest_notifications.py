@@ -9,6 +9,7 @@ from os import environ
 import boto3
 from aws_assume_role_lib import assume_role
 from requests import Session
+from requests.exceptions import HTTPError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -64,16 +65,23 @@ def get_config(ssm_parameter_path):
 
 
 def update_package(attributes, config):
+    package_id = attributes['package_id']['Value']
     package_data = {
-        'package_id': attributes['package_id']['Value'],
+        'identifier': package_id
     }
     if attributes.get('package_data'):
-        package_data['package_data'] = json.loads(
-            attributes['package_data']['Value'])
-    send_http_request(
-        f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages',
-        'post',
-        package_data)
+        package_data.update(json.loads(
+            attributes['package_data']['Value']))
+    try:
+        send_http_request(
+            f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages/{package_id}',
+            'put',
+            package_data)
+    except HTTPError:
+        send_http_request(
+            f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages/',
+            'post',
+            package_data)
 
 
 def construct_event_id():
@@ -92,10 +100,13 @@ def update_events(attributes, config):
             'service': attributes['service']['Value'],
             'package': attributes['package_id']['Value']
         }
+        for key in ['message', 'traceback']:
+            if attributes.get(key):
+                event_data[key] = attributes[key]['Value']
         event_data['identifier'] = package_events[0]['identifier'] if len(
             package_events) == 1 else construct_event_id()
         send_http_request(
-            f'{config["ZODIAC_BASEURL"].rstrip("/")}/events',
+            f'{config["ZODIAC_BASEURL"].rstrip("/")}/events/',
             'post',
             event_data)
     else:
@@ -113,15 +124,15 @@ def send_http_request(url, method, data):
     resp.raise_for_status()
 
 
-def matching_events(package_id, service_name, baseurl, outcome=None):
+def matching_events(package_id, service_name, baseurl,
+                    outcome=None, message=None):
     """Returns list of events matching package and service."""
     package_events = send_http_request(
-        f'{baseurl}/packages/{package_id}/events', 'get')
-    if outcome:
-        return [e for e in package_events if (
-            e['service'] == service_name and e['outcome'] == outcome)]
-    else:
-        return [e for e in package_events if e['service'] == service_name]
+        f'{baseurl}/packages/{package_id}/events/', 'get')
+    return [e for e in package_events if all([
+        e['service'] == service_name,
+        e['outcome'] == outcome,
+        e.get('message') == message])]
 
 
 def send_next_service_message(current_service, package_id, config):
@@ -167,7 +178,8 @@ def lambda_handler(event, context):
             attributes['package_id']['stringValue'],
             attributes['service']['stringValue'],
             config['ZODIAC_BASEURL'].rstrip("/"),
-            attributes['outcome']['stringValue']
+            outcome=attributes.get('outcome', {}).get('stringValue'),
+            message=attributes.get('message', {}).get('stringValue')
         )) == 0:
             update_package(attributes, config)
             update_events(attributes, config)
