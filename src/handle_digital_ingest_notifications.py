@@ -124,15 +124,15 @@ def send_http_request(url, method, data):
     resp.raise_for_status()
 
 
-def matching_events(package_id, service_name, baseurl, outcome=None):
+def matching_events(package_id, service_name, baseurl,
+                    outcome=None, message=None):
     """Returns list of events matching package and service."""
     package_events = send_http_request(
         f'{baseurl}/packages/{package_id}/events/', 'get')
-    if outcome:
-        return [e for e in package_events if (
-            e['service'] == service_name and e['outcome'] == outcome)]
-    else:
-        return [e for e in package_events if e['service'] == service_name]
+    return [e for e in package_events if all([
+        e['service'] == service_name,
+        e['outcome'] == outcome,
+        e.get('message') == message])]
 
 
 def send_next_service_message(current_service, package_id, config):
@@ -178,7 +178,8 @@ def lambda_handler(event, context):
             attributes['package_id']['stringValue'],
             attributes['service']['stringValue'],
             config['ZODIAC_BASEURL'].rstrip("/"),
-            attributes['outcome']['stringValue']
+            outcome=attributes.get('outcome', {}).get('stringValue'),
+            message=attributes.get('message', {}).get('stringValue')
         )) == 0:
             update_package(attributes, config)
             update_events(attributes, config)

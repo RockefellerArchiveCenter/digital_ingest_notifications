@@ -245,12 +245,20 @@ def test_matching_events(mock_http, data_from_file):
         matching_events(
             "package_id",
             "fornax",
-            "baseurl")) == 1  # matching service
+            "baseurl",
+            outcome="success")) == 1  # matching service and status
+    assert len(
+        matching_events(
+            "package_id",
+            "fornax",
+            "baseurl",
+            outcome="failure")) == 0  # matching service, mismatched status
     assert len(
         matching_events(
             "package_id",
             "foo",
-            "baseurl")) == 0  # no matching service
+            "baseurl",
+            outcome="success")) == 0  # no matching service
 
 
 @mock_aws
