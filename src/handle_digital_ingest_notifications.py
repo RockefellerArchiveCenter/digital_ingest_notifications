@@ -17,8 +17,8 @@ logger.setLevel(logging.INFO)
 
 full_config_path = f"/{environ.get('ENV')}/{environ.get('APP_CONFIG_PATH')}"
 NEXT_SERVICE_MAP = {
-    'ursa_major': 'fornax',
-    'webhook': 'aquarius'
+    'digital_ingest_discovery': 'digital_ingest_assembly',
+    'digital_ingest_webhook': 'digital_ingest_transformation'
 }
 zodiac_client = Session()
 

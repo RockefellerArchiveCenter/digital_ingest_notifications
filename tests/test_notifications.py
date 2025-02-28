@@ -244,13 +244,13 @@ def test_matching_events(mock_http, data_from_file):
     assert len(
         matching_events(
             "package_id",
-            "fornax",
+            "digital_ingest_assembly",
             "baseurl",
             outcome="SUCCESS")) == 1  # matching service and status
     assert len(
         matching_events(
             "package_id",
-            "fornax",
+            "digital_ingest_assembly",
             "baseurl",
             outcome="FAILURE")) == 0  # matching service, mismatched status
     assert len(
@@ -287,14 +287,14 @@ def test_start_next_service(mock_role):
     messages = queue.receive_messages(MaxNumberOfMessages=1)
     assert len(messages) == 0
 
-    send_next_service_message('ursa_major', package_id, config)
+    send_next_service_message('digital_ingest_discovery', package_id, config)
 
     queue = sqs_conn.get_queue_by_name(QueueName="test-queue")
     messages = queue.receive_messages(MaxNumberOfMessages=1)
     message_body = json.loads(messages[0].body)
     assert message_body['MessageAttributes']['package_id']['Value'] == package_id
     assert message_body['MessageAttributes']['requested_status']['Value'] == 'START'
-    assert message_body['MessageAttributes']['service']['Value'] == 'fornax'
+    assert message_body['MessageAttributes']['service']['Value'] == 'digital_ingest_assembly'
 
 
 @mock_aws
