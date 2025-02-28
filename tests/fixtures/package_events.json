@@ -1,25 +1,19 @@
 [
     {
         "identifier": "f78742e5-6af9-4756-a94a-6cd297406d50",
-        "service": "ursa_major",
+        "service": "digital_ingest_discovery",
         "outcome": "SUCCESS",
         "package_identifier": "f78742e5-6af9-4756-a94a-6cd297406d50"
     },
     {
         "identifier": "f78742e5-6af9-4756-a94a-6cd297406d50",
-        "service": "fornax",
+        "service": "digital_ingest_assembly",
         "outcome": "SUCCESS",
         "package_identifier": "f78742e5-6af9-4756-a94a-6cd297406d50"
     },
     {
         "identifier": "f78742e5-6af9-4756-a94a-6cd297406d50",
-        "service": "gemini",
-        "outcome": "SUCCESS",
-        "package_identifier": "f78742e5-6af9-4756-a94a-6cd297406d50"
-    },
-    {
-        "identifier": "f78742e5-6af9-4756-a94a-6cd297406d50",
-        "service": "aquarius",
+        "service": "digital_ingest_transformation",
         "outcome": "SUCCESS",
         "package_identifier": "f78742e5-6af9-4756-a94a-6cd297406d50"
     }
