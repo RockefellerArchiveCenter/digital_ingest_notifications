@@ -167,20 +167,31 @@ def lambda_handler(event, context):
         attributes = record['messageAttributes']
         logger.debug(attributes)
 
+        package_id = attributes.get('package_id', {}).get('stringValue')
+        service = attributes.get('service', {}).get('stringValue')
+        outcome = attributes.get('outcome', {}).get('stringValue')
+        message = attributes.get('message', {}).get('stringValue')
+
+        if not all([package_id, service, outcome]):
+            logging.error(
+                f'Unable to find required values in attributes: {attributes}')
+            continue
+
         if len(matching_events(
-            attributes['package_id']['stringValue'],
-            attributes['service']['stringValue'],
+            package_id,
+            service,
             config['ZODIAC_BASEURL'].rstrip("/"),
-            outcome=attributes.get('outcome', {}).get('stringValue'),
-            message=attributes.get('message', {}).get('stringValue')
+            outcome,
+            message
         )) == 0:
             update_package(attributes, config)
             update_events(attributes, config)
 
-            if attributes.get('outcome', {}).get('stringValue') == 'SUCCESS':
+            if outcome == 'SUCCESS':
                 send_next_service_message(
-                    attributes['service']['stringValue'],
-                    attributes['package_id']['stringValue'],
+                    service,
+                    package_id,
                     config)
+
         else:
             logger.info('Duplicate event found')
