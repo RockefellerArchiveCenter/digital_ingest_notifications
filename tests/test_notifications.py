@@ -262,12 +262,10 @@ def test_matching_events(mock_http, data_from_file):
 
 
 @mock_aws
-@patch('src.handle_digital_ingest_notifications.get_client_with_role')
-def test_start_next_service(mock_role):
+def test_start_next_service():
     package_id = '123456789'
     sns_topic_name = 'digital_ingest_topic'
     sns = boto3.client('sns', region_name='us-east-1')
-    mock_role.return_value = sns
     topic_arn = sns.create_topic(Name=sns_topic_name)['TopicArn']
     config = {'SNS_TOPIC': topic_arn}
     sqs_conn = boto3.resource("sqs", region_name="us-east-1")
