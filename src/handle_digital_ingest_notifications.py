@@ -4,10 +4,9 @@ import json
 import logging
 import traceback
 import uuid
-from os import environ
+from os import getenv
 
 import boto3
-from aws_assume_role_lib import assume_role
 from requests import Session
 from requests.exceptions import HTTPError
 
@@ -15,22 +14,12 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-full_config_path = f"/{environ.get('ENV')}/{environ.get('APP_CONFIG_PATH')}"
+full_config_path = f"/{getenv('ENV')}/{getenv('APP_CONFIG_PATH')}"
 NEXT_SERVICE_MAP = {
     'digital_ingest_discovery': 'digital_ingest_assembly',
     'digital_ingest_webhook': 'digital_ingest_transformation'
 }
 zodiac_client = Session()
-
-
-def get_client_with_role(resource):
-    """Gets Boto3 client which authenticates with a specific IAM role."""
-    session = boto3.Session()
-    assumed_role_session = assume_role(
-        session,
-        environ.get('AWS_ROLE_ARN'),
-        region_name=environ.get('AWS_REGION'))
-    return assumed_role_session.client(resource)
 
 
 def get_config(ssm_parameter_path):
@@ -44,7 +33,9 @@ def get_config(ssm_parameter_path):
     """
     configuration = {}
     try:
-        ssm_client = get_client_with_role('ssm')
+        ssm_client = boto3.client(
+            'ssm',
+            region_name=getenv('AWS_DEFAULT_REGION', 'us-east-1'))
 
         param_details = ssm_client.get_parameters_by_path(
             Path=ssm_parameter_path,
@@ -140,7 +131,9 @@ def send_next_service_message(current_service, package_id, config):
     try:
         next_service = NEXT_SERVICE_MAP[current_service]
         logger.info(f"Starting service {next_service}")
-        client = get_client_with_role('sns')
+        client = boto3.client(
+            'sns',
+            region_name=getenv('AWS_DEFAULT_REGION', 'us-east-1'))
         client.publish(
             TopicArn=config['SNS_TOPIC'],
             Message=f'Start service {next_service} for package {package_id}',
