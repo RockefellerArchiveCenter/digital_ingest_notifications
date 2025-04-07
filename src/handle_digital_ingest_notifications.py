@@ -105,7 +105,7 @@ def update_events(attributes, config):
             f'Got more than one matching event for package {attributes["package_id"]}, found {len(package_events)}')
 
 
-def send_http_request(url, method, data):
+def send_http_request(url, method, data=None):
     """Sends HTTP request and checks to ensure completion."""
     logger.debug(f"Sending {method} request to {url} with data {data}")
     if data:
