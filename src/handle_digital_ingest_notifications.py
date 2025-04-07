@@ -105,7 +105,7 @@ def update_events(attributes, config):
             f'Got more than one matching event for package {attributes["package_id"]}, found {len(package_events)}')
 
 
-def send_http_request(url, method, data):
+def send_http_request(url, method, data=None):
     """Sends HTTP request and checks to ensure completion."""
     logger.debug(f"Sending {method} request to {url} with data {data}")
     if data:
@@ -164,8 +164,8 @@ def lambda_handler(event, context):
 
     config = get_config(full_config_path)
     for record in event['Records']:
+        logger.debug(record)
         attributes = record['messageAttributes']
-        logger.debug(attributes)
 
         package_id = attributes.get('package_id', {}).get('stringValue')
         service = attributes.get('service', {}).get('stringValue')
