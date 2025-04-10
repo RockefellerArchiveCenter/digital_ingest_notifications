@@ -113,17 +113,24 @@ def send_http_request(url, method, data=None):
     else:
         resp = getattr(zodiac_client, method)(url)
     resp.raise_for_status()
+    return resp.json()
 
 
 def matching_events(package_id, service_name, baseurl,
                     outcome=None, message=None):
     """Returns list of events matching package and service."""
-    package_events = send_http_request(
-        f'{baseurl}/packages/{package_id}/events/', 'get')
-    return [e for e in package_events if all([
-        e['service'] == service_name,
-        e['outcome'] == outcome,
-        e.get('message') == message])]
+    try:
+        package_events = send_http_request(
+            f'{baseurl}/packages/{package_id}/events/', 'get')
+        return [e for e in package_events if all([
+            e['service'] == service_name,
+            e['outcome'] == outcome,
+            e.get('message') == message])]
+    except HTTPError as e:
+        if e.response.status_code == 404:
+            return []
+        else:
+            raise
 
 
 def send_next_service_message(current_service, package_id, config):
