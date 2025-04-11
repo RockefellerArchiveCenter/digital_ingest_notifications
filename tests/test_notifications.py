@@ -109,8 +109,7 @@ def test_failure_notification(
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
 @patch('src.handle_digital_ingest_notifications.construct_event_id')
-def test_create_success_event(
-        mock_id, mock_http, config_fixture):
+def test_create_success_event(mock_id, mock_http, config_fixture):
     """Assert events are created with correct data"""
     event_id = '123456789'
     mock_id.return_value = event_id
@@ -136,10 +135,7 @@ def test_create_success_event(
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
 @patch('src.handle_digital_ingest_notifications.construct_event_id')
-@pytest.mark.parametrize('data_from_file',
-                         ['failure_attributes.json'], indirect=True)
-def test_create_failure_event(
-        mock_id, mock_http, config_fixture, data_from_file):
+def test_create_failure_event(mock_id, mock_http, config_fixture):
     """Assert events are created with correct data"""
     event_id = '123456789'
     mock_id.return_value = event_id
@@ -167,7 +163,7 @@ def test_create_failure_event(
 def test_create_package(mock_http, config_fixture):
     """Assert packages are created with the correct data"""
     mock_http.side_effect = [HTTPError(), None]
-    update_package(config_fixture, '20f8da26e268418ead4aa2365f816a08', '{}')
+    update_package(config_fixture, '20f8da26e268418ead4aa2365f816a08', None)
     mock_http.assert_has_calls([
         call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
              'put',
