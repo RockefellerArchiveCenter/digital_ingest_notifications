@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import call, patch
+from unittest.mock import Mock, call, patch
 
 import boto3
 import pytest
@@ -49,6 +49,9 @@ def config_fixture():
 def test_success_notification(
         mock_start, mock_events, mock_package, mock_matching_events, mock_config, data_from_file):
     attributes = data_from_file['Records'][0]['messageAttributes']
+    package_id = '20f8da26e268418ead4aa2365f816a08'
+    service = 'validation'
+    outcome = 'SUCCESS'
     mock_matching_events.return_value = []
     lambda_handler(data_from_file, None)
     mock_config.assert_called_once()
@@ -56,8 +59,10 @@ def test_success_notification(
         'validation',
         attributes['package_id']['stringValue'],
         mock_config())
-    mock_events.assert_called_once_with(attributes, mock_config())
-    mock_package.assert_called_once_with(attributes, mock_config())
+    mock_events.assert_called_once_with(
+        mock_config(), package_id, service, outcome, None, None)
+    mock_package.assert_called_once_with(
+        mock_config(), package_id, None)
 
     # reset mocks
     mock_config.reset_mock()
@@ -83,34 +88,49 @@ def test_success_notification(
 def test_failure_notification(
         mock_start, mock_events, mock_package, mock_matching_events, mock_config, data_from_file):
     """Assert failure notifications are handled correctly"""
-    attributes = data_from_file['Records'][0]['messageAttributes']
     mock_matching_events.return_value = []
     lambda_handler(data_from_file, None)
     mock_config.assert_called_once()
     mock_start.assert_not_called()
-    mock_events.assert_called_once_with(attributes, mock_config())
-    mock_package.assert_called_once_with(attributes, mock_config())
+    package_id = '20f8da26e268418ead4aa2365f816a08'
+    service = 'validation'
+    outcome = 'FAILURE'
+    message = 'BagIt validation failed.'
+    traceback = 'Much longer traceback.'
+    mock_events.assert_called_once_with(
+        mock_config(),
+        package_id,
+        service,
+        outcome,
+        message,
+        traceback)
+    mock_package.assert_called_once_with(mock_config(), package_id, None)
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
 @patch('src.handle_digital_ingest_notifications.construct_event_id')
-@pytest.mark.parametrize('data_from_file',
-                         ['success_attributes.json'], indirect=True)
 def test_create_success_event(
-        mock_id, mock_http, config_fixture, data_from_file):
+        mock_id, mock_http, config_fixture):
     """Assert events are created with correct data"""
     event_id = '123456789'
     mock_id.return_value = event_id
-    update_events(data_from_file, config_fixture)
-    assert mock_http.call_count == 2
-    mock_http.assert_called_with(
+    update_events(
+        config_fixture,
+        '20f8da26e268418ead4aa2365f816a08',
+        'validation',
+        'SUCCESS',
+        None,
+        None)
+    mock_http.assert_called_once_with(
         f"{ZODIAC_BASEURL}/events/",
         'post',
         {
             'outcome': 'SUCCESS',
             'service': 'validation',
             'package': '20f8da26e268418ead4aa2365f816a08',
-            'identifier': event_id
+            'identifier': event_id,
+            'message': None,
+            'traceback': None
         })
 
 
@@ -123,9 +143,14 @@ def test_create_failure_event(
     """Assert events are created with correct data"""
     event_id = '123456789'
     mock_id.return_value = event_id
-    update_events(data_from_file, config_fixture)
-    assert mock_http.call_count == 2
-    mock_http.assert_called_with(
+    update_events(
+        config_fixture,
+        '20f8da26e268418ead4aa2365f816a08',
+        'validation',
+        'FAILURE',
+        'BagIt validation failed.',
+        'Much longer traceback.')
+    mock_http.assert_called_once_with(
         f"{ZODIAC_BASEURL}/events/",
         'post',
         {
@@ -139,43 +164,10 @@ def test_create_failure_event(
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
-@patch('src.handle_digital_ingest_notifications.construct_event_id')
-@patch('src.handle_digital_ingest_notifications.matching_events')
-@pytest.mark.parametrize('data_from_file',
-                         ['success_attributes.json'], indirect=True)
-def test_update_event(mock_matching_events, mock_id,
-                      mock_http, config_fixture, data_from_file):
-    """Assert event data is updated as expected"""
-    event_id = '123456789'
-    mock_id.return_value = event_id
-    mock_matching_events.return_value = [
-        {
-            'outcome': 'SUCCESS',
-            'service': 'validation',
-            'package': '20f8da26e268418ead4aa2365f816a08',
-            'identifier': event_id
-        }
-    ]
-    update_events(data_from_file, config_fixture)
-    assert mock_http.call_count == 1
-    mock_http.assert_called_with(
-        f"{ZODIAC_BASEURL}/events/",
-        'post',
-        {
-            'outcome': 'SUCCESS',
-            'service': 'validation',
-            'package': '20f8da26e268418ead4aa2365f816a08',
-            'identifier': event_id})
-    mock_id.assert_not_called()
-
-
-@patch('src.handle_digital_ingest_notifications.send_http_request')
-@pytest.mark.parametrize('data_from_file',
-                         ['success_attributes.json'], indirect=True)
-def test_create_package(mock_http, config_fixture, data_from_file):
+def test_create_package(mock_http, config_fixture):
     """Assert packages are created with the correct data"""
     mock_http.side_effect = [HTTPError(), None]
-    update_package(data_from_file, config_fixture)
+    update_package(config_fixture, '20f8da26e268418ead4aa2365f816a08', '{}')
     mock_http.assert_has_calls([
         call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
              'put',
@@ -197,41 +189,43 @@ def test_create_package(mock_http, config_fixture, data_from_file):
 def test_create_package_with_data(mock_http, config_fixture, data_from_file):
     """Assert packages are created with the correct data"""
     mock_http.side_effect = [HTTPError(), None]
-    update_package(data_from_file, config_fixture)
+    data = {
+        'identifier': '20f8da26e268418ead4aa2365f816a08',
+        'foo': 'bar',
+        'baz': [{'bus': True, 'buz': False}]
+    }
+    update_package(
+        config_fixture,
+        '20f8da26e268418ead4aa2365f816a08',
+        json.dumps(data))
     mock_http.assert_has_calls([
         call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
              'put',
-             {
-                 'identifier': '20f8da26e268418ead4aa2365f816a08',
-                 'foo': 'bar',
-                 'baz': [{'bus': True, 'buz': False}]
-             }),
+             data),
         call(
             f'{ZODIAC_BASEURL}/packages/',
             'post',
-            {
-                'identifier': '20f8da26e268418ead4aa2365f816a08',
-                'foo': 'bar',
-                'baz': [{'bus': True, 'buz': False}]
-            }
+            data
         )
     ])
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
-@pytest.mark.parametrize('data_from_file',
-                         ['success_attributes_with_data.json'], indirect=True)
-def test_update_package_with_data(mock_http, config_fixture, data_from_file):
+def test_update_package_with_data(mock_http, config_fixture):
     """Assert packages are created with the correct data"""
-    update_package(data_from_file, config_fixture)
+    data = {
+        'identifier': '20f8da26e268418ead4aa2365f816a08',
+        'foo': 'bar',
+        'baz': [{'bus': True, 'buz': False}]
+    }
+    update_package(
+        config_fixture,
+        '20f8da26e268418ead4aa2365f816a08',
+        json.dumps(data))
     mock_http.assert_called_once_with(
         f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
         'put',
-        {
-            'identifier': '20f8da26e268418ead4aa2365f816a08',
-            'foo': 'bar',
-            'baz': [{'bus': True, 'buz': False}]
-        }
+        data
     )
 
 
@@ -259,6 +253,15 @@ def test_matching_events(mock_http, data_from_file):
             "foo",
             "baseurl",
             outcome="SUCCESS")) == 0  # no matching service
+    mock_response = Mock()
+    mock_response.status_code = 404
+    mock_http.side_effect = HTTPError(response=mock_response)
+    assert len(
+        matching_events(
+            "package_id",
+            "foo",
+            "baseurl",
+            outcome="SUCCESS")) == 0  # 404
 
 
 @mock_aws
