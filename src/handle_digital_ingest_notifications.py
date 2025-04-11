@@ -55,14 +55,9 @@ def get_config(ssm_parameter_path):
         return configuration
 
 
-def update_package(attributes, config):
-    package_id = attributes['package_id']['Value']
-    package_data = {
-        'identifier': package_id
-    }
-    if attributes.get('package_data'):
-        package_data.update(json.loads(
-            attributes['package_data']['Value']))
+def update_package(config, package_id, raw_package_data='{}'):
+    package_data = json.loads(raw_package_data)
+    package_data['identifier'] = package_id
     try:
         send_http_request(
             f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages/{package_id}',
@@ -79,30 +74,19 @@ def construct_event_id():
     return str(uuid.uuid4())
 
 
-def update_events(attributes, config):
-    package_events = matching_events(
-        attributes['package_id'],
-        attributes['service'],
-        config['ZODIAC_BASEURL'].rstrip("/"))
-    logger.debug(package_events)
-    if len(package_events) <= 1:
-        event_data = {
-            'outcome': attributes['outcome']['Value'],
-            'service': attributes['service']['Value'],
-            'package': attributes['package_id']['Value']
-        }
-        for key in ['message', 'traceback']:
-            if attributes.get(key):
-                event_data[key] = attributes[key]['Value']
-        event_data['identifier'] = package_events[0]['identifier'] if len(
-            package_events) == 1 else construct_event_id()
-        send_http_request(
-            f'{config["ZODIAC_BASEURL"].rstrip("/")}/events/',
-            'post',
-            event_data)
-    else:
-        raise Exception(
-            f'Got more than one matching event for package {attributes["package_id"]}, found {len(package_events)}')
+def update_events(config, package_id, service, outcome, message, traceback):
+    event_data = {
+        'outcome': outcome,
+        'service': service,
+        'package': package_id,
+        'message': message,
+        'traceback': traceback,
+        'identifier': construct_event_id()
+    }
+    send_http_request(
+        f'{config["ZODIAC_BASEURL"].rstrip("/")}/events/',
+        'post',
+        event_data)
 
 
 def send_http_request(url, method, data=None):
@@ -175,9 +159,11 @@ def lambda_handler(event, context):
         attributes = record['messageAttributes']
 
         package_id = attributes.get('package_id', {}).get('stringValue')
+        package_data = attributes.get('package_data', {}).get('stringValue')
         service = attributes.get('service', {}).get('stringValue')
         outcome = attributes.get('outcome', {}).get('stringValue')
         message = attributes.get('message', {}).get('stringValue')
+        traceback = attributes.get('traceback', {}).get('stringValue')
 
         if not all([package_id, service, outcome]):
             logging.error(
@@ -191,8 +177,14 @@ def lambda_handler(event, context):
             outcome,
             message
         )) == 0:
-            update_package(attributes, config)
-            update_events(attributes, config)
+            update_package(config, package_id, package_data)
+            update_events(
+                config,
+                package_id,
+                service,
+                outcome,
+                message,
+                traceback)
 
             if outcome == 'SUCCESS':
                 send_next_service_message(
