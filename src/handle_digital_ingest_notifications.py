@@ -158,7 +158,10 @@ def lambda_handler(event, context):
     for record in event['Records']:
         logger.info(record)
 
-        package_data = json.loads(record['body'])
+        try:
+            package_data = json.loads(record['body'])
+        except json.decoder.JSONDecodeError:
+            package_data = None
 
         attributes = record['messageAttributes']
         package_id = attributes.get('package_id', {}).get('stringValue')
