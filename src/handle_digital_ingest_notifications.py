@@ -156,7 +156,7 @@ def lambda_handler(event, context):
 
     config = get_config(full_config_path)
     for record in event['Records']:
-        logger.debug(record)
+        logger.info(record)
         attributes = record['messageAttributes']
 
         package_id = attributes.get('package_id', {}).get('stringValue')
