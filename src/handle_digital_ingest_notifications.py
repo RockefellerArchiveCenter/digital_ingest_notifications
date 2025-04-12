@@ -79,7 +79,7 @@ def update_events(config, package_id, service, outcome, message, traceback):
     event_data = {
         'outcome': outcome,
         'service': service,
-        'package': package_id,
+        'package_identifier': package_id,
         'message': message,
         'traceback': traceback,
         'identifier': construct_event_id()
@@ -157,10 +157,11 @@ def lambda_handler(event, context):
     config = get_config(full_config_path)
     for record in event['Records']:
         logger.info(record)
-        attributes = record['messageAttributes']
 
+        package_data = json.loads(record['body'])
+
+        attributes = record['messageAttributes']
         package_id = attributes.get('package_id', {}).get('stringValue')
-        package_data = attributes.get('package_data', {}).get('stringValue')
         service = attributes.get('service', {}).get('stringValue')
         outcome = attributes.get('outcome', {}).get('stringValue')
         message = attributes.get('message', {}).get('stringValue')
