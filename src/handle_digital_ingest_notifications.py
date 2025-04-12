@@ -55,9 +55,10 @@ def get_config(ssm_parameter_path):
         return configuration
 
 
-def update_package(config, package_id, raw_package_data='{}'):
-    package_data = json.loads(raw_package_data)
-    package_data['identifier'] = package_id
+def update_package(config, package_id, raw_package_data=None):
+    package_data = {"identifier": package_id}
+    if raw_package_data:
+        package_data.update(json.loads(raw_package_data))
     try:
         send_http_request(
             f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages/{package_id}',
