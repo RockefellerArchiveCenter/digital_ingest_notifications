@@ -61,7 +61,7 @@ def update_package(config, package_id, raw_package_data=None):
         package_data.update(json.loads(raw_package_data))
     try:
         send_http_request(
-            f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages/{package_id}',
+            f'{config["ZODIAC_BASEURL"].rstrip("/")}/packages/{package_id}/',
             'put',
             package_data)
     except HTTPError:
