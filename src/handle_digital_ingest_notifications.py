@@ -159,16 +159,15 @@ def lambda_handler(event, context):
         logger.info(record)
 
         try:
-            package_data = json.loads(record['body'])
+            parsed_body = json.loads(record['body'])
         except json.decoder.JSONDecodeError:
-            package_data = None
+            parsed_body = record['body']
 
         attributes = record['messageAttributes']
         package_id = attributes.get('package_id', {}).get('stringValue')
         service = attributes.get('service', {}).get('stringValue')
         outcome = attributes.get('outcome', {}).get('stringValue')
         message = attributes.get('message', {}).get('stringValue')
-        traceback = attributes.get('traceback', {}).get('stringValue')
 
         if not all([package_id, service, outcome]):
             logging.error(
@@ -182,14 +181,14 @@ def lambda_handler(event, context):
             outcome,
             message
         )) == 0:
-            update_package(config, package_id, package_data)
+            update_package(config, package_id, parsed_body)
             update_events(
                 config,
                 package_id,
                 service,
                 outcome,
                 message,
-                traceback)
+                parsed_body)
 
             if outcome == 'SUCCESS':
                 send_next_service_message(
