@@ -191,7 +191,7 @@ def test_create_package_with_data(mock_http, config_fixture):
     update_package(
         config_fixture,
         '20f8da26e268418ead4aa2365f816a08',
-        json.dumps(data))
+        data)
     mock_http.assert_has_calls([
         call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08/',
              'patch',
@@ -215,7 +215,7 @@ def test_update_package_with_data(mock_http, config_fixture):
     update_package(
         config_fixture,
         '20f8da26e268418ead4aa2365f816a08',
-        json.dumps(data))
+        data)
     mock_http.assert_called_once_with(
         f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08/',
         'patch',
