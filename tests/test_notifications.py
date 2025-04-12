@@ -165,7 +165,7 @@ def test_create_package(mock_http, config_fixture):
     mock_http.side_effect = [HTTPError(), None]
     update_package(config_fixture, '20f8da26e268418ead4aa2365f816a08', None)
     mock_http.assert_has_calls([
-        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
+        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08/',
              'put',
              {
                  'identifier': '20f8da26e268418ead4aa2365f816a08'
@@ -195,7 +195,7 @@ def test_create_package_with_data(mock_http, config_fixture, data_from_file):
         '20f8da26e268418ead4aa2365f816a08',
         json.dumps(data))
     mock_http.assert_has_calls([
-        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
+        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08/',
              'put',
              data),
         call(
@@ -219,7 +219,7 @@ def test_update_package_with_data(mock_http, config_fixture):
         '20f8da26e268418ead4aa2365f816a08',
         json.dumps(data))
     mock_http.assert_called_once_with(
-        f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
+        f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08/',
         'put',
         data
     )
