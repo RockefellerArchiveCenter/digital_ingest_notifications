@@ -60,9 +60,9 @@ def test_success_notification(
         attributes['package_id']['stringValue'],
         mock_config())
     mock_events.assert_called_once_with(
-        mock_config(), package_id, service, outcome, None, None)
+        mock_config(), package_id, service, outcome, 'Validation successful', None)
     mock_package.assert_called_once_with(
-        mock_config(), package_id, None)
+        mock_config(), package_id, {})
 
     # reset mocks
     mock_config.reset_mock()
@@ -104,7 +104,7 @@ def test_failure_notification(
         outcome,
         message,
         traceback)
-    mock_package.assert_called_once_with(mock_config(), package_id, None)
+    mock_package.assert_called_once_with(mock_config(), package_id, {})
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
@@ -126,7 +126,7 @@ def test_create_success_event(mock_id, mock_http, config_fixture):
         {
             'outcome': 'SUCCESS',
             'service': 'validation',
-            'package': '20f8da26e268418ead4aa2365f816a08',
+            'package_identifier': '20f8da26e268418ead4aa2365f816a08',
             'identifier': event_id,
             'message': None,
             'traceback': None
@@ -152,7 +152,7 @@ def test_create_failure_event(mock_id, mock_http, config_fixture):
         {
             'outcome': 'FAILURE',
             'service': 'validation',
-            'package': '20f8da26e268418ead4aa2365f816a08',
+            'package_identifier': '20f8da26e268418ead4aa2365f816a08',
             'message': 'BagIt validation failed.',
             'traceback': 'Much longer traceback.',
             'identifier': event_id
