@@ -180,9 +180,7 @@ def test_create_package(mock_http, config_fixture):
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
-@pytest.mark.parametrize('data_from_file',
-                         ['success_attributes_with_data.json'], indirect=True)
-def test_create_package_with_data(mock_http, config_fixture, data_from_file):
+def test_create_package_with_data(mock_http, config_fixture):
     """Assert packages are created with the correct data"""
     mock_http.side_effect = [HTTPError(), None]
     data = {

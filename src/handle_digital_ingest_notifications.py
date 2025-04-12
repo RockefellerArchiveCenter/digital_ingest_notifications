@@ -92,7 +92,7 @@ def update_events(config, package_id, service, outcome, message, traceback):
 
 def send_http_request(url, method, data=None):
     """Sends HTTP request and checks to ensure completion."""
-    logger.debug(f"Sending {method} request to {url} with data {data}")
+    logger.info(f"Sending {method} request to {url} with data {data}")
     if data:
         resp = getattr(zodiac_client, method)(url, json=data)
     else:
