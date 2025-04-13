@@ -169,6 +169,9 @@ def lambda_handler(event, context):
         outcome = attributes.get('outcome', {}).get('stringValue')
         message = attributes.get('message', {}).get('stringValue')
 
+        package_data = parsed_body if outcome == 'SUCCESS' else None
+        traceback = parsed_body if outcome == 'FAILURE' else None
+
         if not all([package_id, service, outcome]):
             logging.error(
                 f'Unable to find required values in attributes: {attributes}')
@@ -181,14 +184,14 @@ def lambda_handler(event, context):
             outcome,
             message
         )) == 0:
-            update_package(config, package_id, parsed_body)
+            update_package(config, package_id, package_data)
             update_events(
                 config,
                 package_id,
                 service,
                 outcome,
                 message,
-                parsed_body)
+                traceback)
 
             if outcome == 'SUCCESS':
                 send_next_service_message(

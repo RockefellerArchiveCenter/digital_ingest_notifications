@@ -64,7 +64,7 @@ def test_success_notification(
         package_id,
         service, outcome,
         'Validation successful',
-        {'identifier': '20f8da26e268418ead4aa2365f816a08'})
+        None)
     mock_package.assert_called_once_with(
         mock_config(),
         package_id,
@@ -110,7 +110,7 @@ def test_failure_notification(
         outcome,
         message,
         traceback)
-    mock_package.assert_called_once_with(mock_config(), package_id, traceback)
+    mock_package.assert_called_once_with(mock_config(), package_id, None)
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
