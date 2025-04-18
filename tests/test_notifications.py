@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import Mock, call, patch
+from unittest.mock import call, patch
 
 import boto3
 import pytest
@@ -12,7 +12,7 @@ from requests.exceptions import HTTPError
 
 from src.handle_digital_ingest_notifications import (get_config,
                                                      lambda_handler,
-                                                     matching_events,
+                                                     send_http_request,
                                                      send_next_service_message,
                                                      update_events,
                                                      update_package)
@@ -40,19 +40,17 @@ def config_fixture():
 
 
 @patch('src.handle_digital_ingest_notifications.get_config')
-@patch('src.handle_digital_ingest_notifications.matching_events')
 @patch('src.handle_digital_ingest_notifications.update_package')
 @patch('src.handle_digital_ingest_notifications.update_events')
 @patch('src.handle_digital_ingest_notifications.send_next_service_message')
 @pytest.mark.parametrize('data_from_file',
                          ['success_message.json'], indirect=True)
 def test_success_notification(
-        mock_start, mock_events, mock_package, mock_matching_events, mock_config, data_from_file):
+        mock_start, mock_events, mock_package, mock_config, data_from_file):
     attributes = data_from_file['Records'][0]['messageAttributes']
     package_id = '20f8da26e268418ead4aa2365f816a08'
     service = 'validation'
     outcome = 'SUCCESS'
-    mock_matching_events.return_value = []
     lambda_handler(data_from_file, None)
     mock_config.assert_called_once()
     mock_start.assert_called_once_with(
@@ -70,31 +68,16 @@ def test_success_notification(
         package_id,
         {'identifier': '20f8da26e268418ead4aa2365f816a08'})
 
-    # reset mocks
-    mock_config.reset_mock()
-    mock_start.reset_mock()
-    mock_events.reset_mock()
-    mock_package.reset_mock()
-
-    mock_matching_events.return_value = [{"foo": "bar"}]
-    lambda_handler(data_from_file, None)
-    mock_config.assert_called_once()
-    mock_start.assert_not_called()
-    mock_events.assert_not_called()
-    mock_package.assert_not_called()
-
 
 @patch('src.handle_digital_ingest_notifications.get_config')
-@patch('src.handle_digital_ingest_notifications.matching_events')
 @patch('src.handle_digital_ingest_notifications.update_package')
 @patch('src.handle_digital_ingest_notifications.update_events')
 @patch('src.handle_digital_ingest_notifications.send_next_service_message')
 @pytest.mark.parametrize('data_from_file',
                          ['failure_message.json'], indirect=True)
 def test_failure_notification(
-        mock_start, mock_events, mock_package, mock_matching_events, mock_config, data_from_file):
+        mock_start, mock_events, mock_package, mock_config, data_from_file):
     """Assert failure notifications are handled correctly"""
-    mock_matching_events.return_value = []
     lambda_handler(data_from_file, None)
     mock_config.assert_called_once()
     mock_start.assert_not_called()
@@ -111,6 +94,23 @@ def test_failure_notification(
         message,
         traceback)
     mock_package.assert_called_once_with(mock_config(), package_id, None)
+
+
+@patch('src.handle_digital_ingest_notifications.get_config')
+@patch('src.handle_digital_ingest_notifications.update_package')
+@patch('src.handle_digital_ingest_notifications.update_events')
+@patch('src.handle_digital_ingest_notifications.send_next_service_message')
+@pytest.mark.parametrize('data_from_file',
+                         ['success_message_missing_attributes.json'], indirect=True)
+def test_missing_attributes(
+        mock_start, mock_events, mock_package, mock_config, data_from_file):
+    """Assert handling when required attributes are missing."""
+
+    lambda_handler(data_from_file, None)
+
+    mock_config.assert_called_once()
+    for m in [mock_start, mock_events, mock_package]:
+        m.assert_not_called()
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
@@ -229,41 +229,6 @@ def test_update_package_with_data(mock_http, config_fixture):
     )
 
 
-@patch('src.handle_digital_ingest_notifications.send_http_request')
-@pytest.mark.parametrize('data_from_file',
-                         ['package_events.json'], indirect=True)
-def test_matching_events(mock_http, data_from_file):
-    """Assert matching events returns expected results"""
-    mock_http.return_value = data_from_file
-    assert len(
-        matching_events(
-            "package_id",
-            "digital_ingest_assembly",
-            "baseurl",
-            outcome="SUCCESS")) == 1  # matching service and status
-    assert len(
-        matching_events(
-            "package_id",
-            "digital_ingest_assembly",
-            "baseurl",
-            outcome="FAILURE")) == 0  # matching service, mismatched status
-    assert len(
-        matching_events(
-            "package_id",
-            "foo",
-            "baseurl",
-            outcome="SUCCESS")) == 0  # no matching service
-    mock_response = Mock()
-    mock_response.status_code = 404
-    mock_http.side_effect = HTTPError(response=mock_response)
-    assert len(
-        matching_events(
-            "package_id",
-            "foo",
-            "baseurl",
-            outcome="SUCCESS")) == 0  # 404
-
-
 @mock_aws
 def test_start_next_service():
     package_id = '123456789'
@@ -310,3 +275,39 @@ def test_config():
         )
     config = get_config(path)
     assert config == {'foo': 'bar', 'baz': 'buzz'}
+
+
+@patch('requests.Session.get')
+def test_send_http_request(mock_get):
+    """Tests HTTP requests result in expected behavior"""
+
+    class MockResponse(object):
+        """Class used to mock HTTP responses"""
+
+        def __init__(self, json_data, status_code, **kwargs):
+            """Sets data, status code, and any other data passed in."""
+            self.json_data = json_data
+            self.status_code = status_code
+            for k in kwargs:
+                setattr(self, k, kwargs[k])
+
+        def json(self):
+            """Mocks the json method of an HTTP response"""
+            return self.json_data
+
+        def raise_for_status(self):
+            if self.status_code != 200:
+                self.text = "This is an error"
+                raise HTTPError(response=self)
+            pass
+
+    mock_get.return_value = MockResponse({}, 200)
+    output = send_http_request("example.com", 'get')
+    assert output == {}
+
+    output = send_http_request("example.com", 'get', data={"foo": "bar"})
+    assert output == {}
+
+    mock_get.return_value = MockResponse({}, 400)
+    with pytest.raises(HTTPError):
+        send_http_request("example.com", 'get')
