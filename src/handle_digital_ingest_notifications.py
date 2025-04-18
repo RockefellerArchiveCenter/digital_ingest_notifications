@@ -8,7 +8,9 @@ from os import getenv
 
 import boto3
 from requests import Session
+from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
+from urllib3 import Retry
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -20,6 +22,12 @@ NEXT_SERVICE_MAP = {
     'digital_ingest_webhook': 'digital_ingest_transformation'
 }
 zodiac_client = Session()
+retries = Retry(total=3,
+                backoff_factor=0.3,
+                status_forcelist=[500, 502, 503, 504])
+adapter = HTTPAdapter(max_retries=retries)
+zodiac_client.mount('http://', adapter)
+zodiac_client.mount('https://', adapter)
 
 
 def get_config(ssm_parameter_path):
