@@ -101,23 +101,6 @@ def send_http_request(url, method, data=None):
     return resp.json()
 
 
-def matching_events(package_id, service_name, baseurl,
-                    outcome=None, message=None):
-    """Returns list of events matching package and service."""
-    try:
-        package_events = send_http_request(
-            f'{baseurl}/packages/{package_id}/events/', 'get')
-        return [e for e in package_events if all([
-            e['service'] == service_name,
-            e['outcome'] == outcome,
-            e.get('message') == message])]
-    except HTTPError as e:
-        if e.response.status_code == 404:
-            return []
-        else:
-            raise
-
-
 def send_next_service_message(current_service, package_id, config):
     """Sends message to start next service if applicable."""
     try:
@@ -177,27 +160,20 @@ def lambda_handler(event, context):
                 f'Unable to find required values in attributes: {attributes}')
             continue
 
-        if len(matching_events(
+        update_package(config, package_id, package_data)
+        update_events(
+            config,
             package_id,
             service,
-            config['ZODIAC_BASEURL'].rstrip("/"),
             outcome,
-            message
-        )) == 0:
-            update_package(config, package_id, package_data)
-            update_events(
-                config,
-                package_id,
-                service,
-                outcome,
-                message,
-                traceback)
+            message,
+            traceback)
 
-            if outcome == 'SUCCESS':
-                send_next_service_message(
-                    service,
-                    package_id,
-                    config)
+        if outcome == 'SUCCESS':
+            send_next_service_message(
+                service,
+                package_id,
+                config)
 
         else:
             logger.info('Duplicate event found')
