@@ -97,8 +97,13 @@ def send_http_request(url, method, data=None):
         resp = getattr(zodiac_client, method)(url, json=data)
     else:
         resp = getattr(zodiac_client, method)(url)
-    resp.raise_for_status()
-    return resp.json()
+    try:
+        resp.raise_for_status()
+        return resp.json()
+    except HTTPError as err:
+        logging.error(err.response.text)
+        # TODO what should happen here? Send a message?
+        raise
 
 
 def send_next_service_message(current_service, package_id, config):

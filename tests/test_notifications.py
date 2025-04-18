@@ -12,6 +12,7 @@ from requests.exceptions import HTTPError
 
 from src.handle_digital_ingest_notifications import (get_config,
                                                      lambda_handler,
+                                                     send_http_request,
                                                      send_next_service_message,
                                                      update_events,
                                                      update_package)
@@ -274,3 +275,39 @@ def test_config():
         )
     config = get_config(path)
     assert config == {'foo': 'bar', 'baz': 'buzz'}
+
+
+@patch('requests.Session.get')
+def test_send_http_request(mock_get):
+    """Tests HTTP requests result in expected behavior"""
+
+    class MockResponse(object):
+        """Class used to mock HTTP responses"""
+
+        def __init__(self, json_data, status_code, **kwargs):
+            """Sets data, status code, and any other data passed in."""
+            self.json_data = json_data
+            self.status_code = status_code
+            for k in kwargs:
+                setattr(self, k, kwargs[k])
+
+        def json(self):
+            """Mocks the json method of an HTTP response"""
+            return self.json_data
+
+        def raise_for_status(self):
+            if self.status_code != 200:
+                self.text = "This is an error"
+                raise HTTPError(response=self)
+            pass
+
+    mock_get.return_value = MockResponse({}, 200)
+    output = send_http_request("example.com", 'get')
+    assert output == {}
+
+    output = send_http_request("example.com", 'get', data={"foo": "bar"})
+    assert output == {}
+
+    mock_get.return_value = MockResponse({}, 400)
+    with pytest.raises(HTTPError):
+        send_http_request("example.com", 'get')
