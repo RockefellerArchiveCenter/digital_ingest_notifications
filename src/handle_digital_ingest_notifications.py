@@ -124,6 +124,7 @@ def send_next_service_message(current_service, package_id, config):
             region_name=getenv('AWS_DEFAULT_REGION', 'us-east-1'))
         client.publish(
             TopicArn=config['SNS_TOPIC'],
+            MessageGroupId='digital_ingest_notifications',
             Message=f'Start service {next_service} for package {package_id}',
             MessageAttributes={
                 'package_id': {
