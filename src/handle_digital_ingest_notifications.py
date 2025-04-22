@@ -188,6 +188,3 @@ def lambda_handler(event, context):
                 service,
                 package_id,
                 config)
-
-        else:
-            logger.info('Duplicate event found')
