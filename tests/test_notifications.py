@@ -232,16 +232,28 @@ def test_update_package_with_data(mock_http, config_fixture):
 @mock_aws
 def test_start_next_service():
     package_id = '123456789'
-    sns_topic_name = 'digital_ingest_topic'
+    sns_topic_name = 'digital_ingest_topic.fifo'
     sns = boto3.client('sns', region_name='us-east-1')
-    topic_arn = sns.create_topic(Name=sns_topic_name)['TopicArn']
+    topic_arn = sns.create_topic(
+        Name=sns_topic_name,
+        Attributes={
+            "FifoTopic": 'true',
+            "ContentBasedDeduplication": 'true',
+        }
+    )['TopicArn']
     config = {'SNS_TOPIC': topic_arn}
     sqs_conn = boto3.resource("sqs", region_name="us-east-1")
-    sqs_conn.create_queue(QueueName="test-queue")
+    queue_name = "test-queue.fifo"
+    sqs_conn.create_queue(
+        QueueName=queue_name,
+        Attributes={
+            "FifoQueue": 'true',
+            "ContentBasedDeduplication": 'true',
+        })
     sns.subscribe(
         TopicArn=topic_arn,
         Protocol="sqs",
-        Endpoint=f"arn:aws:sqs:us-east-1:{DEFAULT_ACCOUNT_ID}:test-queue",
+        Endpoint=f"arn:aws:sqs:us-east-1:{DEFAULT_ACCOUNT_ID}:{queue_name}",
     )
 
     send_next_service_message(
@@ -249,13 +261,13 @@ def test_start_next_service():
         package_id,
         config)  # no next service defined
 
-    queue = sqs_conn.get_queue_by_name(QueueName="test-queue")
+    queue = sqs_conn.get_queue_by_name(QueueName=queue_name)
     messages = queue.receive_messages(MaxNumberOfMessages=1)
     assert len(messages) == 0
 
     send_next_service_message('digital_ingest_discovery', package_id, config)
 
-    queue = sqs_conn.get_queue_by_name(QueueName="test-queue")
+    queue = sqs_conn.get_queue_by_name(QueueName=queue_name)
     messages = queue.receive_messages(MaxNumberOfMessages=1)
     message_body = json.loads(messages[0].body)
     assert message_body['MessageAttributes']['package_id']['Value'] == package_id
