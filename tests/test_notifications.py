@@ -12,7 +12,7 @@ from requests.exceptions import HTTPError
 
 from src.handle_digital_ingest_notifications import (get_config,
                                                      lambda_handler,
-                                                     matching_events,
+                                                     send_http_request,
                                                      send_next_service_message,
                                                      update_events,
                                                      update_package)
@@ -40,98 +40,125 @@ def config_fixture():
 
 
 @patch('src.handle_digital_ingest_notifications.get_config')
-@patch('src.handle_digital_ingest_notifications.matching_events')
 @patch('src.handle_digital_ingest_notifications.update_package')
 @patch('src.handle_digital_ingest_notifications.update_events')
 @patch('src.handle_digital_ingest_notifications.send_next_service_message')
 @pytest.mark.parametrize('data_from_file',
                          ['success_message.json'], indirect=True)
 def test_success_notification(
-        mock_start, mock_events, mock_package, mock_matching_events, mock_config, data_from_file):
+        mock_start, mock_events, mock_package, mock_config, data_from_file):
     attributes = data_from_file['Records'][0]['messageAttributes']
-    mock_matching_events.return_value = []
+    package_id = '20f8da26e268418ead4aa2365f816a08'
+    service = 'validation'
+    outcome = 'SUCCESS'
     lambda_handler(data_from_file, None)
     mock_config.assert_called_once()
     mock_start.assert_called_once_with(
         'validation',
         attributes['package_id']['stringValue'],
         mock_config())
-    mock_events.assert_called_once_with(attributes, mock_config())
-    mock_package.assert_called_once_with(attributes, mock_config())
-
-    # reset mocks
-    mock_config.reset_mock()
-    mock_start.reset_mock()
-    mock_events.reset_mock()
-    mock_package.reset_mock()
-
-    mock_matching_events.return_value = [{"foo": "bar"}]
-    lambda_handler(data_from_file, None)
-    mock_config.assert_called_once()
-    mock_start.assert_not_called()
-    mock_events.assert_not_called()
-    mock_package.assert_not_called()
+    mock_events.assert_called_once_with(
+        mock_config(),
+        package_id,
+        service, outcome,
+        'Validation successful',
+        None)
+    mock_package.assert_called_once_with(
+        mock_config(),
+        package_id,
+        {'identifier': '20f8da26e268418ead4aa2365f816a08'})
 
 
 @patch('src.handle_digital_ingest_notifications.get_config')
-@patch('src.handle_digital_ingest_notifications.matching_events')
 @patch('src.handle_digital_ingest_notifications.update_package')
 @patch('src.handle_digital_ingest_notifications.update_events')
 @patch('src.handle_digital_ingest_notifications.send_next_service_message')
 @pytest.mark.parametrize('data_from_file',
                          ['failure_message.json'], indirect=True)
 def test_failure_notification(
-        mock_start, mock_events, mock_package, mock_matching_events, mock_config, data_from_file):
+        mock_start, mock_events, mock_package, mock_config, data_from_file):
     """Assert failure notifications are handled correctly"""
-    attributes = data_from_file['Records'][0]['messageAttributes']
-    mock_matching_events.return_value = []
     lambda_handler(data_from_file, None)
     mock_config.assert_called_once()
     mock_start.assert_not_called()
-    mock_events.assert_called_once_with(attributes, mock_config())
-    mock_package.assert_called_once_with(attributes, mock_config())
+    package_id = '20f8da26e268418ead4aa2365f816a08'
+    service = 'validation'
+    outcome = 'FAILURE'
+    message = 'BagIt validation failed.'
+    traceback = 'Much longer traceback.'
+    mock_events.assert_called_once_with(
+        mock_config(),
+        package_id,
+        service,
+        outcome,
+        message,
+        traceback)
+    mock_package.assert_called_once_with(mock_config(), package_id, None)
+
+
+@patch('src.handle_digital_ingest_notifications.get_config')
+@patch('src.handle_digital_ingest_notifications.update_package')
+@patch('src.handle_digital_ingest_notifications.update_events')
+@patch('src.handle_digital_ingest_notifications.send_next_service_message')
+@pytest.mark.parametrize('data_from_file',
+                         ['success_message_missing_attributes.json'], indirect=True)
+def test_missing_attributes(
+        mock_start, mock_events, mock_package, mock_config, data_from_file):
+    """Assert handling when required attributes are missing."""
+
+    lambda_handler(data_from_file, None)
+
+    mock_config.assert_called_once()
+    for m in [mock_start, mock_events, mock_package]:
+        m.assert_not_called()
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
 @patch('src.handle_digital_ingest_notifications.construct_event_id')
-@pytest.mark.parametrize('data_from_file',
-                         ['success_attributes.json'], indirect=True)
-def test_create_success_event(
-        mock_id, mock_http, config_fixture, data_from_file):
+def test_create_success_event(mock_id, mock_http, config_fixture):
     """Assert events are created with correct data"""
     event_id = '123456789'
     mock_id.return_value = event_id
-    update_events(data_from_file, config_fixture)
-    assert mock_http.call_count == 2
-    mock_http.assert_called_with(
+    update_events(
+        config_fixture,
+        '20f8da26e268418ead4aa2365f816a08',
+        'validation',
+        'SUCCESS',
+        None,
+        None)
+    mock_http.assert_called_once_with(
         f"{ZODIAC_BASEURL}/events/",
         'post',
         {
             'outcome': 'SUCCESS',
             'service': 'validation',
-            'package': '20f8da26e268418ead4aa2365f816a08',
-            'identifier': event_id
+            'package_identifier': '20f8da26e268418ead4aa2365f816a08',
+            'identifier': event_id,
+            'message': None,
+            'traceback': None
         })
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
 @patch('src.handle_digital_ingest_notifications.construct_event_id')
-@pytest.mark.parametrize('data_from_file',
-                         ['failure_attributes.json'], indirect=True)
-def test_create_failure_event(
-        mock_id, mock_http, config_fixture, data_from_file):
+def test_create_failure_event(mock_id, mock_http, config_fixture):
     """Assert events are created with correct data"""
     event_id = '123456789'
     mock_id.return_value = event_id
-    update_events(data_from_file, config_fixture)
-    assert mock_http.call_count == 2
-    mock_http.assert_called_with(
+    update_events(
+        config_fixture,
+        '20f8da26e268418ead4aa2365f816a08',
+        'validation',
+        'FAILURE',
+        'BagIt validation failed.',
+        'Much longer traceback.')
+    mock_http.assert_called_once_with(
         f"{ZODIAC_BASEURL}/events/",
         'post',
         {
             'outcome': 'FAILURE',
             'service': 'validation',
-            'package': '20f8da26e268418ead4aa2365f816a08',
+            'package_identifier': '20f8da26e268418ead4aa2365f816a08',
             'message': 'BagIt validation failed.',
             'traceback': 'Much longer traceback.',
             'identifier': event_id
@@ -139,46 +166,13 @@ def test_create_failure_event(
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
-@patch('src.handle_digital_ingest_notifications.construct_event_id')
-@patch('src.handle_digital_ingest_notifications.matching_events')
-@pytest.mark.parametrize('data_from_file',
-                         ['success_attributes.json'], indirect=True)
-def test_update_event(mock_matching_events, mock_id,
-                      mock_http, config_fixture, data_from_file):
-    """Assert event data is updated as expected"""
-    event_id = '123456789'
-    mock_id.return_value = event_id
-    mock_matching_events.return_value = [
-        {
-            'outcome': 'SUCCESS',
-            'service': 'validation',
-            'package': '20f8da26e268418ead4aa2365f816a08',
-            'identifier': event_id
-        }
-    ]
-    update_events(data_from_file, config_fixture)
-    assert mock_http.call_count == 1
-    mock_http.assert_called_with(
-        f"{ZODIAC_BASEURL}/events/",
-        'post',
-        {
-            'outcome': 'SUCCESS',
-            'service': 'validation',
-            'package': '20f8da26e268418ead4aa2365f816a08',
-            'identifier': event_id})
-    mock_id.assert_not_called()
-
-
-@patch('src.handle_digital_ingest_notifications.send_http_request')
-@pytest.mark.parametrize('data_from_file',
-                         ['success_attributes.json'], indirect=True)
-def test_create_package(mock_http, config_fixture, data_from_file):
+def test_create_package(mock_http, config_fixture):
     """Assert packages are created with the correct data"""
     mock_http.side_effect = [HTTPError(), None]
-    update_package(data_from_file, config_fixture)
+    update_package(config_fixture, '20f8da26e268418ead4aa2365f816a08', None)
     mock_http.assert_has_calls([
-        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
-             'put',
+        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08/',
+             'patch',
              {
                  'identifier': '20f8da26e268418ead4aa2365f816a08'
              }),
@@ -192,90 +186,74 @@ def test_create_package(mock_http, config_fixture, data_from_file):
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
-@pytest.mark.parametrize('data_from_file',
-                         ['success_attributes_with_data.json'], indirect=True)
-def test_create_package_with_data(mock_http, config_fixture, data_from_file):
+def test_create_package_with_data(mock_http, config_fixture):
     """Assert packages are created with the correct data"""
     mock_http.side_effect = [HTTPError(), None]
-    update_package(data_from_file, config_fixture)
+    data = {
+        'identifier': '20f8da26e268418ead4aa2365f816a08',
+        'foo': 'bar',
+        'baz': [{'bus': True, 'buz': False}]
+    }
+    update_package(
+        config_fixture,
+        '20f8da26e268418ead4aa2365f816a08',
+        data)
     mock_http.assert_has_calls([
-        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
-             'put',
-             {
-                 'identifier': '20f8da26e268418ead4aa2365f816a08',
-                 'foo': 'bar',
-                 'baz': [{'bus': True, 'buz': False}]
-             }),
+        call(f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08/',
+             'patch',
+             data),
         call(
             f'{ZODIAC_BASEURL}/packages/',
             'post',
-            {
-                'identifier': '20f8da26e268418ead4aa2365f816a08',
-                'foo': 'bar',
-                'baz': [{'bus': True, 'buz': False}]
-            }
+            data
         )
     ])
 
 
 @patch('src.handle_digital_ingest_notifications.send_http_request')
-@pytest.mark.parametrize('data_from_file',
-                         ['success_attributes_with_data.json'], indirect=True)
-def test_update_package_with_data(mock_http, config_fixture, data_from_file):
+def test_update_package_with_data(mock_http, config_fixture):
     """Assert packages are created with the correct data"""
-    update_package(data_from_file, config_fixture)
+    data = {
+        'identifier': '20f8da26e268418ead4aa2365f816a08',
+        'foo': 'bar',
+        'baz': [{'bus': True, 'buz': False}]
+    }
+    update_package(
+        config_fixture,
+        '20f8da26e268418ead4aa2365f816a08',
+        data)
     mock_http.assert_called_once_with(
-        f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08',
-        'put',
-        {
-            'identifier': '20f8da26e268418ead4aa2365f816a08',
-            'foo': 'bar',
-            'baz': [{'bus': True, 'buz': False}]
-        }
+        f'{ZODIAC_BASEURL}/packages/20f8da26e268418ead4aa2365f816a08/',
+        'patch',
+        data
     )
 
 
-@patch('src.handle_digital_ingest_notifications.send_http_request')
-@pytest.mark.parametrize('data_from_file',
-                         ['package_events.json'], indirect=True)
-def test_matching_events(mock_http, data_from_file):
-    """Assert matching events returns expected results"""
-    mock_http.return_value = data_from_file
-    assert len(
-        matching_events(
-            "package_id",
-            "digital_ingest_assembly",
-            "baseurl",
-            outcome="SUCCESS")) == 1  # matching service and status
-    assert len(
-        matching_events(
-            "package_id",
-            "digital_ingest_assembly",
-            "baseurl",
-            outcome="FAILURE")) == 0  # matching service, mismatched status
-    assert len(
-        matching_events(
-            "package_id",
-            "foo",
-            "baseurl",
-            outcome="SUCCESS")) == 0  # no matching service
-
-
 @mock_aws
-@patch('src.handle_digital_ingest_notifications.get_client_with_role')
-def test_start_next_service(mock_role):
+def test_start_next_service():
     package_id = '123456789'
-    sns_topic_name = 'digital_ingest_topic'
+    sns_topic_name = 'digital_ingest_topic.fifo'
     sns = boto3.client('sns', region_name='us-east-1')
-    mock_role.return_value = sns
-    topic_arn = sns.create_topic(Name=sns_topic_name)['TopicArn']
+    topic_arn = sns.create_topic(
+        Name=sns_topic_name,
+        Attributes={
+            "FifoTopic": 'true',
+            "ContentBasedDeduplication": 'true',
+        }
+    )['TopicArn']
     config = {'SNS_TOPIC': topic_arn}
     sqs_conn = boto3.resource("sqs", region_name="us-east-1")
-    sqs_conn.create_queue(QueueName="test-queue")
+    queue_name = "test-queue.fifo"
+    sqs_conn.create_queue(
+        QueueName=queue_name,
+        Attributes={
+            "FifoQueue": 'true',
+            "ContentBasedDeduplication": 'true',
+        })
     sns.subscribe(
         TopicArn=topic_arn,
         Protocol="sqs",
-        Endpoint=f"arn:aws:sqs:us-east-1:{DEFAULT_ACCOUNT_ID}:test-queue",
+        Endpoint=f"arn:aws:sqs:us-east-1:{DEFAULT_ACCOUNT_ID}:{queue_name}",
     )
 
     send_next_service_message(
@@ -283,13 +261,13 @@ def test_start_next_service(mock_role):
         package_id,
         config)  # no next service defined
 
-    queue = sqs_conn.get_queue_by_name(QueueName="test-queue")
+    queue = sqs_conn.get_queue_by_name(QueueName=queue_name)
     messages = queue.receive_messages(MaxNumberOfMessages=1)
     assert len(messages) == 0
 
     send_next_service_message('digital_ingest_discovery', package_id, config)
 
-    queue = sqs_conn.get_queue_by_name(QueueName="test-queue")
+    queue = sqs_conn.get_queue_by_name(QueueName=queue_name)
     messages = queue.receive_messages(MaxNumberOfMessages=1)
     message_body = json.loads(messages[0].body)
     assert message_body['MessageAttributes']['package_id']['Value'] == package_id
@@ -309,3 +287,39 @@ def test_config():
         )
     config = get_config(path)
     assert config == {'foo': 'bar', 'baz': 'buzz'}
+
+
+@patch('requests.Session.get')
+def test_send_http_request(mock_get):
+    """Tests HTTP requests result in expected behavior"""
+
+    class MockResponse(object):
+        """Class used to mock HTTP responses"""
+
+        def __init__(self, json_data, status_code, **kwargs):
+            """Sets data, status code, and any other data passed in."""
+            self.json_data = json_data
+            self.status_code = status_code
+            for k in kwargs:
+                setattr(self, k, kwargs[k])
+
+        def json(self):
+            """Mocks the json method of an HTTP response"""
+            return self.json_data
+
+        def raise_for_status(self):
+            if self.status_code != 200:
+                self.text = "This is an error"
+                raise HTTPError(response=self)
+            pass
+
+    mock_get.return_value = MockResponse({}, 200)
+    output = send_http_request("example.com", 'get')
+    assert output == {}
+
+    output = send_http_request("example.com", 'get', data={"foo": "bar"})
+    assert output == {}
+
+    mock_get.return_value = MockResponse({}, 400)
+    with pytest.raises(HTTPError):
+        send_http_request("example.com", 'get')

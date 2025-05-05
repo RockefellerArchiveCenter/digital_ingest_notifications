@@ -3,7 +3,7 @@
       {
           "messageId": "059f36b4-87a3-44ab-83d2-661975830a7d",
           "receiptHandle": "AQEBwJnKyrHigUMZj6rYigCgxlaS3SLy0a...",
-          "body": "Much longer traceback.",
+          "body": "{\"identifier\": \"20f8da26e268418ead4aa2365f816a08\"}",
           "attributes": {
               "ApproximateReceiveCount": "1",
               "SentTimestamp": "1545082649183",
@@ -11,25 +11,17 @@
               "ApproximateFirstReceiveTimestamp": "1545082649185"
           },
           "messageAttributes": {
-              "package_id": {
-                  "stringValue": "20f8da26e268418ead4aa2365f816a08", 
-                  "dataType": "String"
-              },
               "service": {
                   "stringValue": "validation", 
                   "dataType": "String"
               },
               "outcome": {
-                  "stringValue": "FAILURE", 
+                  "stringValue": "SUCCESS", 
                   "dataType": "String"
               },
               "message": {
-                "stringValue": "BagIt validation failed.",
-                "dataType": "String"
-              },
-              "traceback": {
-                "stringValue": "Much longer traceback.",
-                "dataType": "String"
+                  "stringValue": "Validation successful",
+                  "dataType": "String"
               }
           },
           "md5OfBody": "e4e68fb7bd0e697a0ae8f1bb342846b3",
