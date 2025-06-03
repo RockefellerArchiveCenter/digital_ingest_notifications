@@ -10,6 +10,14 @@ git clone https://github.com/RockefellerArchiveCenter/digital_ingest_notificatio
 cd digital_ingest_notifications
 ```
 
+## Service Flow
+
+The service processes requests as follows:
+- Parses the message body and attributes
+- Updates package data in the [Zodiac Backend API](https://github.com/RockefellerArchiveCenter/zodiac_backend/)
+- Updates the events associated with the package in the Zodiac Backend API
+- If the service completed successfully, send a message to start the next service, which will be handled by [digital_ingest_trigger](https://github.com/RockefellerArchiveCenter/digital_ingest_trigger/)
+
 ## Usage
 
 This repository is intended to be deployed as a Lambda script in AWS infrastructure.
