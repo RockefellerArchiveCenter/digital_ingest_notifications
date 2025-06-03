@@ -18,10 +18,14 @@ This repository is intended to be deployed as a Lambda script in AWS infrastruct
 
 The script is designed to consume message from an AWS Simple Queue Service (SQS) queue. These messages are expected have the following attributes:
 - `package_id` - an identifier associated with the package
-- `package_data` - new data about the package created by a service, if relevant
 - `service` - the service which produced the message
-- `outcome` - the outcome of the service (`SUCCESS` or `FAILURE`)
-- `traceback` - a detailed error message.
+- `outcome` - the outcome of the service (`STARTED`, `SUCCESS` or `FAILURE`)
+
+If the message indicates the successful completion of a service, the body of the message contains package data.
+
+If the message indicates that a service has failed, the body of the message contains a detailed error traceback.
+
+Start messages do not include either package data or an error traceback.
 
 ## License
 
