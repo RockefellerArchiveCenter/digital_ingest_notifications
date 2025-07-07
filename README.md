@@ -10,6 +10,14 @@ git clone https://github.com/RockefellerArchiveCenter/digital_ingest_notificatio
 cd digital_ingest_notifications
 ```
 
+## Service Flow
+
+The service processes requests as follows:
+- Parses the message body and attributes
+- Updates package data in the [Zodiac Backend API](https://github.com/RockefellerArchiveCenter/zodiac_backend/)
+- Updates the events associated with the package in the Zodiac Backend API
+- If the service completed successfully, send a message to start the next service, which will be handled by [digital_ingest_trigger](https://github.com/RockefellerArchiveCenter/digital_ingest_trigger/)
+
 ## Usage
 
 This repository is intended to be deployed as a Lambda script in AWS infrastructure.
@@ -18,10 +26,14 @@ This repository is intended to be deployed as a Lambda script in AWS infrastruct
 
 The script is designed to consume message from an AWS Simple Queue Service (SQS) queue. These messages are expected have the following attributes:
 - `package_id` - an identifier associated with the package
-- `package_data` - new data about the package created by a service, if relevant
 - `service` - the service which produced the message
-- `outcome` - the outcome of the service (`SUCCESS` or `FAILURE`)
-- `traceback` - a detailed error message.
+- `outcome` - the outcome of the service (`STARTED`, `SUCCESS` or `FAILURE`)
+
+If the message indicates the successful completion of a service, the body of the message contains package data.
+
+If the message indicates that a service has failed, the body of the message contains a detailed error traceback.
+
+Start messages do not include either package data or an error traceback.
 
 ## License
 
