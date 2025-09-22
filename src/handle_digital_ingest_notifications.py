@@ -153,8 +153,6 @@ def lambda_handler(event, context):
 
     config = get_config(full_config_path)
     for record in event['Records']:
-        logger.info(record)
-
         try:
             parsed_body = json.loads(record['body'])
         except json.decoder.JSONDecodeError:
