@@ -114,7 +114,7 @@ def send_http_request(url, method, data=None):
         raise
 
 
-def send_next_service_message(current_service, package_id, config):
+def send_next_service_message(current_service, package_id, size, config):
     """Sends message to start next service if applicable."""
     try:
         next_service = NEXT_SERVICE_MAP[current_service]
@@ -122,24 +122,29 @@ def send_next_service_message(current_service, package_id, config):
         client = boto3.client(
             'sns',
             region_name=getenv('AWS_DEFAULT_REGION', 'us-east-1'))
+        attributes = {
+            'package_id': {
+                'DataType': 'String',
+                'StringValue': package_id,
+            },
+            'requested_status': {
+                'DataType': 'String',
+                'StringValue': 'START'
+            },
+            'service': {
+                'DataType': 'String',
+                'StringValue': next_service,
+            }
+        }
+        if size:
+            attributes['size'] = {
+                'DataType': 'String',
+                'StringValue': size}
         client.publish(
             TopicArn=config['SNS_TOPIC'],
             MessageGroupId=f'digital_ingest_notifications-{package_id}',
             Message=f'Start service {next_service} for package {package_id}',
-            MessageAttributes={
-                'package_id': {
-                    'DataType': 'String',
-                    'StringValue': package_id,
-                },
-                'requested_status': {
-                    'DataType': 'String',
-                    'StringValue': 'START'
-                },
-                'service': {
-                    'DataType': 'String',
-                    'StringValue': next_service,
-                }
-            })
+            MessageAttributes=attributes)
         logger.info(
             f'Message to start service {next_service} for package {package_id} sent.')
     except KeyError:
@@ -163,6 +168,7 @@ def lambda_handler(event, context):
         service = attributes.get('service', {}).get('stringValue')
         outcome = attributes.get('outcome', {}).get('stringValue')
         message = attributes.get('message', {}).get('stringValue')
+        size = attributes.get('size', {}).get('stringValue')
 
         package_data = parsed_body if outcome == 'SUCCESS' else None
         traceback = parsed_body if outcome == 'FAILURE' else None
@@ -182,4 +188,4 @@ def lambda_handler(event, context):
             traceback)
 
         if outcome == 'SUCCESS':
-            send_next_service_message(service, package_id, config)
+            send_next_service_message(service, package_id, size, config)

@@ -56,6 +56,38 @@ def test_success_notification(
     mock_start.assert_called_once_with(
         'validation',
         attributes['package_id']['stringValue'],
+        None,
+        mock_config())
+    mock_events.assert_called_once_with(
+        mock_config(),
+        package_id,
+        service, outcome,
+        'Validation successful',
+        None)
+    mock_package.assert_called_once_with(
+        mock_config(),
+        package_id,
+        {'identifier': '20f8da26e268418ead4aa2365f816a08'})
+
+
+@patch('src.handle_digital_ingest_notifications.get_config')
+@patch('src.handle_digital_ingest_notifications.update_package')
+@patch('src.handle_digital_ingest_notifications.update_events')
+@patch('src.handle_digital_ingest_notifications.send_next_service_message')
+@pytest.mark.parametrize('data_from_file',
+                         ['success_message_with_size.json'], indirect=True)
+def test_success_notification_with_size(
+        mock_start, mock_events, mock_package, mock_config, data_from_file):
+    attributes = data_from_file['Records'][0]['messageAttributes']
+    package_id = '20f8da26e268418ead4aa2365f816a08'
+    service = 'validation'
+    outcome = 'SUCCESS'
+    lambda_handler(data_from_file, None)
+    mock_config.assert_called_once()
+    mock_start.assert_called_once_with(
+        'validation',
+        attributes['package_id']['stringValue'],
+        attributes['size']['stringValue'],
         mock_config())
     mock_events.assert_called_once_with(
         mock_config(),
@@ -232,6 +264,7 @@ def test_update_package_with_data(mock_http, config_fixture):
 @mock_aws
 def test_start_next_service():
     package_id = '123456789'
+    package_size = '987654'
     sns_topic_name = 'digital_ingest_topic.fifo'
     sns = boto3.client('sns', region_name='us-east-1')
     topic_arn = sns.create_topic(
@@ -259,13 +292,18 @@ def test_start_next_service():
     send_next_service_message(
         'foo',
         package_id,
+        package_size,
         config)  # no next service defined
 
     queue = sqs_conn.get_queue_by_name(QueueName=queue_name)
     messages = queue.receive_messages(MaxNumberOfMessages=1)
     assert len(messages) == 0
 
-    send_next_service_message('digital_ingest_discovery', package_id, config)
+    send_next_service_message(
+        'digital_ingest_discovery',
+        package_id,
+        package_size,
+        config)
 
     queue = sqs_conn.get_queue_by_name(QueueName=queue_name)
     messages = queue.receive_messages(MaxNumberOfMessages=1)
