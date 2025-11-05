@@ -29,6 +29,8 @@ The script is designed to consume message from an AWS Simple Queue Service (SQS)
 - `service` - the service which produced the message
 - `outcome` - the outcome of the service (`STARTED`, `SUCCESS` or `FAILURE`)
 
+If temporary storage is needed for the next task, the message includes a `size` attribute specifying the size of the original (compressed) package.
+
 If the message indicates the successful completion of a service, the body of the message contains package data.
 
 If the message indicates that a service has failed, the body of the message contains a detailed error traceback.
