@@ -10,12 +10,9 @@ from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 from requests.exceptions import HTTPError
 
-from src.handle_digital_ingest_notifications import (get_config,
-                                                     lambda_handler,
-                                                     send_http_request,
-                                                     send_next_service_message,
-                                                     update_events,
-                                                     update_package)
+from src.handle_digital_ingest_notifications import (
+    get_config, lambda_handler, send_http_request, send_next_services_message,
+    update_events, update_package)
 
 TABLE_NAME = 'test_table'
 ZODIAC_BASEURL = 'https://zodiac.rockarch.org/api'
@@ -42,7 +39,7 @@ def config_fixture():
 @patch('src.handle_digital_ingest_notifications.get_config')
 @patch('src.handle_digital_ingest_notifications.update_package')
 @patch('src.handle_digital_ingest_notifications.update_events')
-@patch('src.handle_digital_ingest_notifications.send_next_service_message')
+@patch('src.handle_digital_ingest_notifications.send_next_services_message')
 @pytest.mark.parametrize('data_from_file',
                          ['success_message.json'], indirect=True)
 def test_success_notification(
@@ -73,7 +70,7 @@ def test_success_notification(
 @patch('src.handle_digital_ingest_notifications.get_config')
 @patch('src.handle_digital_ingest_notifications.update_package')
 @patch('src.handle_digital_ingest_notifications.update_events')
-@patch('src.handle_digital_ingest_notifications.send_next_service_message')
+@patch('src.handle_digital_ingest_notifications.send_next_services_message')
 @pytest.mark.parametrize('data_from_file',
                          ['success_message_with_size.json'], indirect=True)
 def test_success_notification_with_size(
@@ -104,7 +101,7 @@ def test_success_notification_with_size(
 @patch('src.handle_digital_ingest_notifications.get_config')
 @patch('src.handle_digital_ingest_notifications.update_package')
 @patch('src.handle_digital_ingest_notifications.update_events')
-@patch('src.handle_digital_ingest_notifications.send_next_service_message')
+@patch('src.handle_digital_ingest_notifications.send_next_services_message')
 @pytest.mark.parametrize('data_from_file',
                          ['failure_message.json'], indirect=True)
 def test_failure_notification(
@@ -131,7 +128,7 @@ def test_failure_notification(
 @patch('src.handle_digital_ingest_notifications.get_config')
 @patch('src.handle_digital_ingest_notifications.update_package')
 @patch('src.handle_digital_ingest_notifications.update_events')
-@patch('src.handle_digital_ingest_notifications.send_next_service_message')
+@patch('src.handle_digital_ingest_notifications.send_next_services_message')
 @pytest.mark.parametrize('data_from_file',
                          ['success_message_missing_attributes.json'], indirect=True)
 def test_missing_attributes(
@@ -289,7 +286,7 @@ def test_start_next_service():
         Endpoint=f"arn:aws:sqs:us-east-1:{DEFAULT_ACCOUNT_ID}:{queue_name}",
     )
 
-    send_next_service_message(
+    send_next_services_message(
         'foo',
         package_id,
         package_size,
@@ -299,18 +296,23 @@ def test_start_next_service():
     messages = queue.receive_messages(MaxNumberOfMessages=1)
     assert len(messages) == 0
 
-    send_next_service_message(
+    send_next_services_message(
         'digital_ingest_discovery',
         package_id,
         package_size,
         config)
 
     queue = sqs_conn.get_queue_by_name(QueueName=queue_name)
-    messages = queue.receive_messages(MaxNumberOfMessages=1)
-    message_body = json.loads(messages[0].body)
-    assert message_body['MessageAttributes']['package_id']['Value'] == package_id
-    assert message_body['MessageAttributes']['requested_status']['Value'] == 'START'
-    assert message_body['MessageAttributes']['service']['Value'] == 'digital_ingest_assembly'
+    messages = queue.receive_messages(MaxNumberOfMessages=2)
+    assert len(messages) == 2
+    assembly_message_body = json.loads(messages[0].body)
+    assert assembly_message_body['MessageAttributes']['package_id']['Value'] == package_id
+    assert assembly_message_body['MessageAttributes']['requested_status']['Value'] == 'START'
+    assert assembly_message_body['MessageAttributes']['service']['Value'] == 'digital_ingest_assembly'
+    iiif_message_body = json.loads(messages[1].body)
+    assert iiif_message_body['MessageAttributes']['package_id']['Value'] == package_id
+    assert iiif_message_body['MessageAttributes']['requested_status']['Value'] == 'START'
+    assert iiif_message_body['MessageAttributes']['service']['Value'] == 'iiif_derivatives'
 
 
 @mock_aws
