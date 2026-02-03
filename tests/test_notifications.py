@@ -53,6 +53,7 @@ def test_success_notification(
     mock_start.assert_called_once_with(
         'validation',
         attributes['package_id']['stringValue'],
+        'digitization',
         None,
         mock_config())
     mock_events.assert_called_once_with(
@@ -64,7 +65,7 @@ def test_success_notification(
     mock_package.assert_called_once_with(
         mock_config(),
         package_id,
-        {'identifier': '20f8da26e268418ead4aa2365f816a08'})
+        {'identifier': '20f8da26e268418ead4aa2365f816a08', 'origin': 'digitization'})
 
 
 @patch('src.handle_digital_ingest_notifications.get_config')
@@ -84,6 +85,7 @@ def test_success_notification_with_size(
     mock_start.assert_called_once_with(
         'validation',
         attributes['package_id']['stringValue'],
+        'digitization',
         attributes['size']['stringValue'],
         mock_config())
     mock_events.assert_called_once_with(
@@ -95,7 +97,7 @@ def test_success_notification_with_size(
     mock_package.assert_called_once_with(
         mock_config(),
         package_id,
-        {'identifier': '20f8da26e268418ead4aa2365f816a08'})
+        {'identifier': '20f8da26e268418ead4aa2365f816a08', 'origin': 'digitization'})
 
 
 @patch('src.handle_digital_ingest_notifications.get_config')
@@ -289,6 +291,7 @@ def test_start_next_service():
     send_next_services_message(
         'foo',
         package_id,
+        'digitization',
         package_size,
         config)  # no next service defined
 
@@ -299,6 +302,7 @@ def test_start_next_service():
     send_next_services_message(
         'digital_ingest_discovery',
         package_id,
+        'digitization',
         package_size,
         config)
 
@@ -313,6 +317,51 @@ def test_start_next_service():
     assert iiif_message_body['MessageAttributes']['package_id']['Value'] == package_id
     assert iiif_message_body['MessageAttributes']['requested_status']['Value'] == 'START'
     assert iiif_message_body['MessageAttributes']['service']['Value'] == 'iiif_derivatives'
+
+
+@mock_aws
+def test_iiif_service_not_started():
+    """Asserts only assembly is started for non-digitization packages."""
+    package_id = '123456789'
+    package_size = '987654'
+    sns_topic_name = 'digital_ingest_topic.fifo'
+    sns = boto3.client('sns', region_name='us-east-1')
+    topic_arn = sns.create_topic(
+        Name=sns_topic_name,
+        Attributes={
+            "FifoTopic": 'true',
+            "ContentBasedDeduplication": 'true',
+        }
+    )['TopicArn']
+    config = {'SNS_TOPIC': topic_arn}
+    sqs_conn = boto3.resource("sqs", region_name="us-east-1")
+    queue_name = "test-queue.fifo"
+    sqs_conn.create_queue(
+        QueueName=queue_name,
+        Attributes={
+            "FifoQueue": 'true',
+            "ContentBasedDeduplication": 'true',
+        })
+    sns.subscribe(
+        TopicArn=topic_arn,
+        Protocol="sqs",
+        Endpoint=f"arn:aws:sqs:us-east-1:{DEFAULT_ACCOUNT_ID}:{queue_name}",
+    )
+
+    send_next_services_message(
+        'digital_ingest_discovery',
+        package_id,
+        'av_digitization',
+        package_size,
+        config)
+
+    queue = sqs_conn.get_queue_by_name(QueueName=queue_name)
+    messages = queue.receive_messages(MaxNumberOfMessages=2)
+    assert len(messages) == 1
+    assembly_message_body = json.loads(messages[0].body)
+    assert assembly_message_body['MessageAttributes']['package_id']['Value'] == package_id
+    assert assembly_message_body['MessageAttributes']['requested_status']['Value'] == 'START'
+    assert assembly_message_body['MessageAttributes']['service']['Value'] == 'digital_ingest_assembly'
 
 
 @mock_aws
