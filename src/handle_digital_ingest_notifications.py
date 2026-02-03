@@ -114,40 +114,43 @@ def send_http_request(url, method, data=None):
         raise
 
 
-def send_next_services_message(current_service, package_id, size, config):
+def send_next_services_message(current_service, package_id, package_origin, size, config):
     """Sends message to start next service if applicable."""
     try:
         next_services = NEXT_SERVICE_MAP[current_service]
         for next_service in next_services:
-            logger.info(f"Starting service {next_service}")
-            client = boto3.client(
-                'sns',
-                region_name=getenv('AWS_DEFAULT_REGION', 'us-east-1'))
-            attributes = {
-                'package_id': {
-                    'DataType': 'String',
-                    'StringValue': package_id,
-                },
-                'requested_status': {
-                    'DataType': 'String',
-                    'StringValue': 'START'
-                },
-                'service': {
-                    'DataType': 'String',
-                    'StringValue': next_service,
+            if next_service == 'iiif_derivatives' and package_origin != 'digitization':
+                pass
+            else:
+                logger.info(f"Starting service {next_service}")
+                client = boto3.client(
+                    'sns',
+                    region_name=getenv('AWS_DEFAULT_REGION', 'us-east-1'))
+                attributes = {
+                    'package_id': {
+                        'DataType': 'String',
+                        'StringValue': package_id,
+                    },
+                    'requested_status': {
+                        'DataType': 'String',
+                        'StringValue': 'START'
+                    },
+                    'service': {
+                        'DataType': 'String',
+                        'StringValue': next_service,
+                    }
                 }
-            }
-            if size:
-                attributes['size'] = {
-                    'DataType': 'String',
-                    'StringValue': size}
-            client.publish(
-                TopicArn=config['SNS_TOPIC'],
-                MessageGroupId=f'digital_ingest_notifications-{package_id}',
-                Message=f'Start service {next_service} for package {package_id}',
-                MessageAttributes=attributes)
-            logger.info(
-                f'Message to start service {next_service} for package {package_id} sent.')
+                if size:
+                    attributes['size'] = {
+                        'DataType': 'String',
+                        'StringValue': size}
+                client.publish(
+                    TopicArn=config['SNS_TOPIC'],
+                    MessageGroupId=f'digital_ingest_notifications-{package_id}',
+                    Message=f'Start service {next_service} for package {package_id}',
+                    MessageAttributes=attributes)
+                logger.info(
+                    f'Message to start service {next_service} for package {package_id} sent.')
     except KeyError:
         logger.info(f'No next service found for {current_service}')
         pass
@@ -189,4 +192,4 @@ def lambda_handler(event, context):
             traceback)
 
         if outcome == 'SUCCESS':
-            send_next_services_message(service, package_id, size, config)
+            send_next_services_message(service, package_id, package_data.get('origin'), size, config)
