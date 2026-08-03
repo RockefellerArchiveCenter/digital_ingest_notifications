@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.2](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/compare/v1.0.1...v1.0.2) (2026-08-03)
+
+
+### Bug Fixes
+
+* **deps:** Scheduled dependency updates ([34d8460](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/commit/34d846012954905ed10accf25b6d51d5601c8ec3))
+* **deps:** Scheduled dependency updates ([7dd8557](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/commit/7dd85570bfbc3375201389a5165567b168f64bd1))
+* **deps:** Scheduled dependency updates ([7dd8557](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/commit/7dd85570bfbc3375201389a5165567b168f64bd1))
+* **deps:** Scheduled dependency updates ([37b06c9](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/commit/37b06c94bf2c249e09d3016ab182f08fa0137847))
+* **deps:** Scheduled dependency updates from Development ([34d8460](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/commit/34d846012954905ed10accf25b6d51d5601c8ec3))
+
 ## [1.0.1](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/compare/v1.0.0...v1.0.1) (2026-07-06)
 
 
