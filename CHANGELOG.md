@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.5](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/compare/v1.0.4...v1.0.5) (2026-10-21)
+
+
+### Bug Fixes
+
+* update pip ([0b19fce](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/commit/0b19fce8d89082fc7c77e22b09b0a304cfc7bd88))
+* update pip ([0b19fce](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/commit/0b19fce8d89082fc7c77e22b09b0a304cfc7bd88))
+* update pip ([02e7e68](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/commit/02e7e689b9623684192ad63ba3cb2d6b554df508))
+* update pip ([02e7e68](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/commit/02e7e689b9623684192ad63ba3cb2d6b554df508))
+* update pip ([783dbd8](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/commit/783dbd89f0f4ab48f081e5b810a5595e7d4571a9))
+
 ## [1.0.4](https://github.com/RockefellerArchiveCenter/digital_ingest_notifications/compare/v1.0.3...v1.0.4) (2026-10-05)
 
 
